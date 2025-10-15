@@ -9,7 +9,7 @@ export default function Home() {
           BRINKIFY
         </Text>
         <View className="bg-card border border-border rounded-xl p-6 mb-6 shadow-sm">
-          <Text className="text-foreground text-base">
+          <Text className="text-primary text-base">
             This is a starter template for a React Native app using Expo and
             NativeWind. It includes a basic setup with a drawer navigation and a
             home screen.
