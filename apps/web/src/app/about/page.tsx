@@ -14,7 +14,7 @@ export default function AboutPage() {
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
     setMenuOpen(false);
-   router.push(path as any);
+    router.push(path as any);
   };
 
   const handleLogout = () => {
@@ -42,31 +42,33 @@ export default function AboutPage() {
             </svg>
           </button>
         </div>
-
-        {/* Mobile Menu */}
-        {menuOpen && (
-          <div className="md:hidden fixed inset-0 z-[60]">
-            <div className="absolute inset-0 bg-black/50" onClick={toggleMenu}></div>
-            <div className="absolute left-0 top-0 h-full w-3/4 bg-blue-600 text-white p-6 pt-16">
-              <button onClick={toggleMenu} className="absolute top-4 right-4 text-white" aria-label="Close menu">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-              <nav className="flex flex-col space-y-4 mt-6">
-                <button onClick={() => navigate('/')} className="text-left text-lg font-medium">Home</button>
-                <button onClick={() => navigate('/explore')} className="text-left text-lg font-medium">Explore</button>
-                <button onClick={() => navigate('/about')} className="text-left text-lg font-medium">About Us</button>
-                <button onClick={() => navigate('/profile/edit')} className="text-left text-lg font-medium">Edit Profile</button>
-                <button onClick={handleLogout} className="text-left text-lg font-medium">Log Out</button>
-              </nav>
-            </div>
-          </div>
-        )}
+        {/* ❌ DO NOT put mobile menu here */}
       </header>
+
+      {/* ✅ Mobile Menu — moved OUTSIDE header */}
+      {menuOpen && (
+        <div className="md:hidden fixed inset-0 z-[60]">
+          <div className="absolute inset-0 bg-black/50" onClick={toggleMenu}></div>
+          <div className="absolute left-0 top-0 h-full w-3/4 bg-blue-600 text-white p-6 pt-16">
+            <button onClick={toggleMenu} className="absolute top-4 right-4 text-white" aria-label="Close menu">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <nav className="flex flex-col space-y-4 mt-6">
+              <button onClick={() => navigate('/')} className="text-left text-lg font-medium">Home</button>
+              <button onClick={() => navigate('/explore')} className="text-left text-lg font-medium">Explore</button>
+              <button onClick={() => navigate('/about')} className="text-left text-lg font-medium">About Us</button>
+              <button onClick={() => navigate('/profile/edit')} className="text-left text-lg font-medium">Edit Profile</button>
+              <button onClick={handleLogout} className="text-left text-lg font-medium">Log Out</button>
+            </nav>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="flex-grow container mx-auto px-4 py-12">
+        {/* ... rest of your content (unchanged) ... */}
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white mb-4">
