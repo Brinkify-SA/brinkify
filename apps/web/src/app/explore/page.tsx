@@ -14,7 +14,7 @@ export default function ExplorePage() {
 
   const navigate = (path: string) => {
     setMenuOpen(false);
-    router.push(path);
+  router.push(path as any);
   };
 
   const openPrivacy = () => window.open('https://brinkifysa.co.za/privacy', '_blank');

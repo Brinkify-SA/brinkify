@@ -33,7 +33,7 @@ export default function ForgotPasswordPage() {
     }
   };
 
-  const navigate = (path: string) => router.push(path);
+  const navigate = (path: string) => router.push(path as any);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">

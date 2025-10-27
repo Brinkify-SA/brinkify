@@ -74,15 +74,15 @@ export default function PostJobPage() {
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
     setMenuOpen(false);
-    router.push(path);
+    router.push(path as any);
   };
 
   const handleLogout = () => {
-    router.push('/auth/login');
+    router.push('/auth/login' as any);
   };
 
   const handleBack = () => {
-    router.push('/dashboard');
+    router.push('/dashboard' as any);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -309,30 +309,34 @@ export default function PostJobPage() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Budget <span className="text-red-500">*</span>
               </label>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="flex-1">
-                  <select
-                    value={formData.budgetType}
-                    onChange={(e) => setFormData({ ...formData, budgetType: e.target.value as any })}
-                    className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                  >
-                    <option value="fixed">Fixed Price</option>
-                    <option value="hourly">Hourly Rate</option>
-                  </select>
-                </div>
-                <div className="flex-1 relative">
-                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="number"
-                    value={formData.budgetAmount}
-                    onChange={(e) => setFormData({ ...formData, budgetAmount: e.target.value })}
-                    min="0"
-                    placeholder="0"
-                    required
-                    className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                  />
-                </div>
-              </div>
+<div className="flex flex-col sm:flex-row gap-3">
+  <div className="flex-1">
+    <label htmlFor="budgetType" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+      Budget Type
+    </label>
+    <select
+      id="budgetType"
+      value={formData.budgetType}
+      onChange={(e) => setFormData({ ...formData, budgetType: e.target.value as any })}
+      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+    >
+      <option value="fixed">Fixed Price</option>
+      <option value="hourly">Hourly Rate</option>
+    </select>
+  </div>
+  <div className="flex-1 relative">
+    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+    <input
+      type="number"
+      value={formData.budgetAmount}
+      onChange={(e) => setFormData({ ...formData, budgetAmount: e.target.value })}
+      min="0"
+      placeholder="0"
+      required
+      className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+    />
+  </div>
+</div>
             </div>
 
             {/* Preferred Date */}
@@ -366,13 +370,14 @@ export default function PostJobPage() {
                       alt={`Preview ${i + 1}`}
                       className="w-full h-full object-cover rounded-lg border border-gray-300 dark:border-gray-600"
                     />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(i)}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
+<button
+  type="button"
+  onClick={() => removeImage(i)}
+  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow"
+  aria-label="Remove image"
+>
+  <X className="w-3 h-3" />
+</button>
                   </div>
                 ))}
                 {previewImages.length < 4 && (
@@ -392,6 +397,7 @@ export default function PostJobPage() {
                   accept="image/*"
                   multiple
                   className="hidden"
+                  aria-label="Upload photos"
                 />
               </div>
               <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">

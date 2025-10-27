@@ -14,7 +14,7 @@ export default function AboutPage() {
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
     setMenuOpen(false);
-    router.push(path);
+   router.push(path as any);
   };
 
   const handleLogout = () => {

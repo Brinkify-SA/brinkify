@@ -117,7 +117,7 @@ export default function JobsPage() {
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
     setMenuOpen(false);
-    router.push(path);
+     router.push(path as any);
   };
 
   const handleLogout = () => {
@@ -321,7 +321,11 @@ function JobCard({ job, isWorker }: { job: any; isWorker: boolean }) {
           {getStatusBadge(job.status)}
 
           <div className="flex gap-2">
-            <button className="p-2 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">
+            <button
+              type="button"
+              title="Open messages"
+              className="p-2 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
               <MessageCircle className="w-4 h-4 text-gray-600 dark:text-gray-400" />
             </button>
             {isWorker && job.status === 'open' && (

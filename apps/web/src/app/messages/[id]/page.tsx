@@ -63,8 +63,11 @@ export default function MessageThreadPage() {
     setCurrentUser(MOCK_CURRENT_USER);
     const conversations = getMockConversations(MOCK_CURRENT_USER);
     
-    if (conversationId && conversations[conversationId]) {
-      setConversation(conversations[conversationId]);
+    if (
+      conversationId &&
+      Object.prototype.hasOwnProperty.call(conversations, conversationId)
+    ) {
+      setConversation(conversations[conversationId as keyof typeof conversations]);
     } else {
       router.push('/messages');
     }
@@ -183,6 +186,7 @@ export default function MessageThreadPage() {
               type="submit"
               disabled={!newMessage.trim()}
               className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+              aria-label="Send message"
             >
               <Send className="w-5 h-5" />
             </button>

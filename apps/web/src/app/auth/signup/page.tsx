@@ -24,7 +24,7 @@ export default function SignUpPage() {
 
   const navigate = (path: string) => {
     setMenuOpen(false);
-    router.push(path);
+ router.push(path as any);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -41,9 +41,9 @@ export default function SignUpPage() {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       if (formData.role === 'worker') {
-        router.push('/auth/worker-onboarding');
+        router.push('/auth/onboarding' as Parameters<typeof router.push>[0]);
       } else {
-        router.push('/explore');
+        router.push('/explore' as Parameters<typeof router.push>[0]);
       }
     } catch (err) {
       setError('Failed to create account. Please try again.');

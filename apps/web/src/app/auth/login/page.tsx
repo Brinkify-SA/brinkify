@@ -22,7 +22,7 @@ export default function LoginPage() {
 
   const navigate = (path: string) => {
     setMenuOpen(false);
-    router.push(path);
+    router.push(path as any);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -13,6 +13,7 @@ export default function LandingPage() {
 
   const navigateAndClose = (path: string) => {
     setMenuOpen(false);
+    // @ts-expect-error
     router.push(path);
   };
 
