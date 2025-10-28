@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
-import { Home, Briefcase, MapPin, Clock, Star, User, Calendar } from 'lucide-react';
+import { Home, Briefcase, MapPin, Clock, Star, User, Calendar, ArrowLeft } from 'lucide-react';
 
 // 🔒 Mock user
 const MOCK_USER = {
@@ -16,7 +16,6 @@ const MOCK_USER = {
 
 // 📋 Mock job data — split by status
 const MOCK_JOBS = {
-  // Worker's jobs
   worker: {
     current: [
       {
@@ -59,7 +58,6 @@ const MOCK_JOBS = {
       },
     ],
   },
-  // Customer's jobs
   customer: {
     current: [
       {
@@ -129,6 +127,10 @@ export default function MyJobsPage() {
     router.push('/auth/login');
   };
 
+  const handleBack = () => {
+    router.push('/dashboard');
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -146,12 +148,23 @@ export default function MyJobsPage() {
       {/* --- Navbar --- */}
       <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <Link href="/" className="text-xl font-bold text-blue-600 dark:text-blue-400">
-            Brinkify SA
-          </Link>
+          <button
+            onClick={handleBack}
+            className="flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline"
+            aria-label="Back to dashboard"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span className="hidden sm:inline">Dashboard</span>
+          </button>
+
+          <h1 className="text-lg font-bold text-gray-800 dark:text-white md:hidden">
+            {isWorker ? 'My Jobs' : 'My Jobs'}
+          </h1>
+
           <div className="hidden md:block">
             <ModeToggle />
           </div>
+
           <button
             onClick={toggleMenu}
             className="md:hidden text-blue-600 dark:text-blue-400 focus:outline-none"
@@ -164,7 +177,7 @@ export default function MyJobsPage() {
         </div>
       </header>
 
-      {/* Mobile Menu */}
+      {/* ✅ Mobile Menu — MOVED OUTSIDE HEADER */}
       {menuOpen && (
         <div className="md:hidden fixed inset-0 z-[60]">
           <div className="absolute inset-0 bg-black/50" onClick={toggleMenu}></div>
@@ -208,7 +221,13 @@ export default function MyJobsPage() {
           {hasCurrent ? (
             <div className="space-y-4">
               {currentJobs.map((job) => (
-                <JobCard key={job.id} job={job} type="current" isWorker={isWorker} />
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  type="current"
+                  isWorker={isWorker}
+                  onViewDetails={() => router.push(`/jobs/${job.id}`)}
+                />
               ))}
             </div>
           ) : (
@@ -230,7 +249,13 @@ export default function MyJobsPage() {
           {hasHistory ? (
             <div className="space-y-4">
               {jobHistory.map((job) => (
-                <JobCard key={job.id} job={job} type="history" isWorker={isWorker} />
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  type="history"
+                  isWorker={isWorker}
+                  onViewDetails={() => router.push(`/jobs/${job.id}`)}
+                />
               ))}
             </div>
           ) : (
@@ -257,10 +282,17 @@ export default function MyJobsPage() {
   );
 }
 
-// ===================
-// Reusable Job Card
-// ===================
-function JobCard({ job, type, isWorker }: { job: any; type: 'current' | 'history'; isWorker: boolean }) {
+function JobCard({
+  job,
+  type,
+  isWorker,
+  onViewDetails,
+}: {
+  job: any;
+  type: 'current' | 'history';
+  isWorker: boolean;
+  onViewDetails: () => void;
+}) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
@@ -322,7 +354,10 @@ function JobCard({ job, type, isWorker }: { job: any; type: 'current' | 'history
             </span>
           )}
 
-          <button className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium">
+          <button
+            onClick={onViewDetails}
+            className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium"
+          >
             View Details
           </button>
         </div>
