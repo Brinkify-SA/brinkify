@@ -1,11 +1,10 @@
-// app/auth/signup/page.tsx
 'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
-import { Eye, EyeOff, User, Mail, Lock, Home, Briefcase } from 'lucide-react';
+import { Eye, EyeOff, User, Mail, Lock, Home, Briefcase, Building2 } from 'lucide-react';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -14,7 +13,7 @@ export default function SignUpPage() {
     name: '',
     email: '',
     password: '',
-    role: 'customer', // 'customer' or 'worker'
+    role: 'customer', // 'customer', 'worker', or 'company'
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -24,7 +23,7 @@ export default function SignUpPage() {
 
   const navigate = (path: string) => {
     setMenuOpen(false);
- router.push(path as any);
+    router.push(path as any);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -41,9 +40,11 @@ export default function SignUpPage() {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       if (formData.role === 'worker') {
-        router.push('/auth/onboarding' as Parameters<typeof router.push>[0]);
+        router.push('/auth/onboarding?role=worker' as Parameters<typeof router.push>[0]);
+      } else if (formData.role === 'company') {
+        router.push('/auth/onboarding?role=company' as Parameters<typeof router.push>[0]);
       } else {
-        router.push('/explore' as Parameters<typeof router.push>[0]);
+        router.push('/auth/onboarding?role=customer' as Parameters<typeof router.push>[0]);
       }
     } catch (err) {
       setError('Failed to create account. Please try again.');
@@ -57,14 +58,13 @@ export default function SignUpPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors">
-      {/* --- Navbar (minimal but consistent) --- */}
+      {/* --- Navbar --- */}
       <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <Link href="/" className="text-xl font-bold text-blue-600 dark:text-blue-400">
             Brinkify SA
           </Link>
 
-          {/* Desktop: Only ModeToggle (no nav links on auth pages is common, but we keep theme toggle) */}
           <div className="hidden md:block">
             <ModeToggle />
           </div>
@@ -86,11 +86,9 @@ export default function SignUpPage() {
             </svg>
           </button>
         </div>
-
-        {/* Mobile Menu — moved OUTSIDE header below */}
       </header>
 
-      {/* ✅ Mobile Menu — outside header */}
+      {/* ✅ Mobile Menu */}
       {menuOpen && (
         <div className="md:hidden fixed inset-0 z-[60]">
           <div className="absolute inset-0 bg-black/50" onClick={toggleMenu}></div>
@@ -134,8 +132,8 @@ export default function SignUpPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Role Selector */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* ✅ Role Selector */}
+            <div className="grid grid-cols-3 gap-3">
               <button
                 type="button"
                 onClick={() => setFormData((prev) => ({ ...prev, role: 'customer' }))}
@@ -148,6 +146,7 @@ export default function SignUpPage() {
                 <Home size={24} className="mb-2" />
                 <span className="font-medium">Homeowner</span>
               </button>
+
               <button
                 type="button"
                 onClick={() => setFormData((prev) => ({ ...prev, role: 'worker' }))}
@@ -159,6 +158,19 @@ export default function SignUpPage() {
               >
                 <Briefcase size={24} className="mb-2" />
                 <span className="font-medium">Worker</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFormData((prev) => ({ ...prev, role: 'company' }))}
+                className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                  formData.role === 'company'
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                <Building2 size={24} className="mb-2" />
+                <span className="font-medium">Company</span>
               </button>
             </div>
 
@@ -230,6 +242,32 @@ export default function SignUpPage() {
               </div>
             </div>
 
+            {/* Confirm Password */}
+            <div>
+              <label htmlFor="confirm" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  id="confirm"
+                  name="confirm"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  minLength={6}
+                  className="w-full pl-10 pr-12 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
             {/* Terms */}
             <div className="flex items-start">
               <input
@@ -240,19 +278,11 @@ export default function SignUpPage() {
               />
               <label htmlFor="terms" className="ml-2 text-sm text-gray-600 dark:text-gray-400">
                 I agree to the{' '}
-                <button
-                  type="button"
-                  onClick={openTerms}
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
-                >
+                <button type="button" onClick={openTerms} className="text-blue-600 dark:text-blue-400 hover:underline">
                   Terms
                 </button>{' '}
                 and{' '}
-                <button
-                  type="button"
-                  onClick={openPrivacy}
-                  className="text-blue-600 dark:text-blue-400 hover:underline"
-                >
+                <button type="button" onClick={openPrivacy} className="text-blue-600 dark:text-blue-400 hover:underline">
                   Privacy Policy
                 </button>
                 .
@@ -285,12 +315,12 @@ export default function SignUpPage() {
         </div>
       </main>
 
-      {/* --- Footer (matching landing page style) --- */}
+      {/* --- Footer --- */}
       <footer className="bg-white dark:bg-gray-950 border-t dark:border-gray-800 py-6 text-center">
         <div className="container mx-auto px-4">
           <span className="text-lg font-bold text-blue-600 dark:text-blue-400">Brinkify SA</span>
           <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm">
-            © {new Date().getFullYear()} Connecting skilled workers with homeowners across South Africa.
+            © {new Date().getFullYear()} Connecting skilled workers, homeowners, and companies across South Africa.
           </p>
         </div>
       </footer>

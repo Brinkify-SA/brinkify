@@ -31,6 +31,9 @@ export default function LandingPage() {
           </Link>
 
           <nav className="hidden md:flex items-center space-x-6">
+            <button onClick={() => navigateAndClose('/download')} className="hover:text-blue-600 dark:hover:text-blue-400 transition">
+              Download
+            </button>
             <button onClick={() => navigateAndClose('/explore')} className="hover:text-blue-600 dark:hover:text-blue-400 transition">
               Explore
             </button>
@@ -65,6 +68,7 @@ export default function LandingPage() {
             <nav className="flex flex-col space-y-4 mt-6">
               <button onClick={() => navigateAndClose('/')} className="text-left text-lg font-medium">Home</button>
               <button onClick={() => navigateAndClose('/explore')} className="text-left text-lg font-medium">Explore</button>
+               <button onClick={() => navigateAndClose('/download')} className="text-left text-lg font-medium">Download</button>
               <button onClick={() => navigateAndClose('/about')} className="text-left text-lg font-medium">About Us</button>
               <button onClick={() => navigateAndClose('/auth/login')} className="text-left text-lg font-medium">Login</button>
               <button onClick={() => navigateAndClose('/auth/signup')} className="text-left text-lg font-medium">Sign Up</button>
@@ -91,13 +95,13 @@ export default function LandingPage() {
                 onClick={() => navigateAndClose('/auth/signup')}
                 className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition"
               >
-                ✅ Get Started Free
+                 Get Started Free
               </button>
               <button
                 onClick={() => navigateAndClose('/auth/login')}
                 className="border-2 border-blue-600 text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 dark:hover:bg-blue-950 transition"
               >
-                🔑 Log In
+                Log-In
               </button>
             </div>
           </div>

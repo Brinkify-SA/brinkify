@@ -2,17 +2,16 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
-import { User, Mail, MapPin, Camera, Briefcase, Home, Tag, Check } from 'lucide-react';
+import { User, Mail, MapPin, Camera, Briefcase, Home, Building, Tag, CreditCard } from 'lucide-react';
 
-// 🔒 Mock: In real app, get role from URL or auth context
-// Example: /auth/onboarding?role=worker
 export default function OnboardingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [role, setRole] = useState<'worker' | 'customer' | null>(null);
+  const [role, setRole] = useState<'worker' | 'customer' | 'company' | null>(null);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -21,42 +20,74 @@ export default function OnboardingPage() {
     // Worker
     skills: [] as string[],
     bio: '',
-    hourlyRate: '',
-    // Customer
-    preferredCategories: [] as string[],
+    portfolio: [] as string[],
+    bankName: '',
+    accountNumber: '',
+    branchCode: '',
+    idNumber: '',
+    // Customer/Company
+    companyName: '',
   });
   const [newSkill, setNewSkill] = useState('');
-  const [newCategory, setNewCategory] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
 
-  // Get role from URL (e.g., /auth/onboarding?role=worker)
+  // Get role from URL
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const roleParam = urlParams.get('role');
-    if (roleParam === 'worker' || roleParam === 'customer') {
-      setRole(roleParam);
+    const roleParam = searchParams.get('role');
+    if (['worker', 'customer', 'company'].includes(roleParam || '')) {
+      setRole(roleParam as any);
     } else {
-      // Default to customer if no role
-      router.push('/auth/onboarding?role=customer' as any);
+      router.push('/auth/onboarding?role=company');
     }
-  }, [router]);
+  }, [searchParams, router]);
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
     setMenuOpen(false);
-   router.push(path as any);
+    router.push(path as any);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+    const files = Array.from(e.target.files || []);
+    if (files.length + formData.portfolio.length > 6) {
+      alert('You can upload up to 6 portfolio images.');
+      return;
+    }
+
+    const newPreviews: string[] = [];
+    const newImages: string[] = [];
+
+    files.forEach((file) => {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image must be less than 5MB.');
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (event) => {
-        setFormData({ ...formData, avatar: event.target?.result as string });
+        const result = event.target?.result as string;
+        newPreviews.push(result);
+        newImages.push(result);
+        if (newPreviews.length === files.length) {
+          setPreviewImages((prev) => [...prev, ...newPreviews]);
+          setFormData((prev) => ({
+            ...prev,
+            portfolio: [...prev.portfolio, ...newImages],
+          }));
+        }
       };
       reader.readAsDataURL(file);
-    }
+    });
+  };
+
+  const removeImage = (index: number) => {
+    setPreviewImages((prev) => prev.filter((_, i) => i !== index));
+    setFormData((prev) => ({
+      ...prev,
+      portfolio: prev.portfolio.filter((_, i) => i !== index),
+    }));
   };
 
   const handleAddSkill = () => {
@@ -68,17 +99,6 @@ export default function OnboardingPage() {
 
   const handleRemoveSkill = (skill: string) => {
     setFormData({ ...formData, skills: formData.skills.filter((s) => s !== skill) });
-  };
-
-  const handleAddCategory = () => {
-    if (newCategory.trim() && !formData.preferredCategories.includes(newCategory.trim())) {
-      setFormData({ ...formData, preferredCategories: [...formData.preferredCategories, newCategory.trim()] });
-      setNewCategory('');
-    }
-  };
-
-  const handleRemoveCategory = (category: string) => {
-    setFormData({ ...formData, preferredCategories: formData.preferredCategories.filter((c) => c !== category) });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -93,6 +113,19 @@ export default function OnboardingPage() {
       return;
     }
 
+    if (role === 'worker') {
+      if (formData.portfolio.length < 3) {
+        setMessage({ type: 'error', text: 'Please upload at least 3 portfolio images.' });
+        setLoading(false);
+        return;
+      }
+      if (!formData.bankName || !formData.accountNumber || !formData.idNumber) {
+        setMessage({ type: 'error', text: 'Banking and ID details are required for workers.' });
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       // ✅ In real app: call your Supabase API
       // Example:
@@ -102,10 +135,7 @@ export default function OnboardingPage() {
       //   body: JSON.stringify({ ...formData, role }),
       // });
 
-      // Simulate API delay
       await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // ✅ On success: redirect to dashboard
       router.push('/dashboard');
     } catch (err) {
       setMessage({ type: 'error', text: 'Failed to complete onboarding. Please try again.' });
@@ -122,6 +152,7 @@ export default function OnboardingPage() {
   }
 
   const isWorker = role === 'worker';
+  const isCompany = role === 'company';
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors">
@@ -132,11 +163,13 @@ export default function OnboardingPage() {
             onClick={() => router.push('/auth/signup')}
             className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
           >
-            <Check className="w-5 h-5" />
-            <span className="hidden sm:inline">Skip</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            </svg>
+            <span className="hidden sm:inline">Back</span>
           </button>
           <h1 className="text-lg font-bold text-gray-800 dark:text-white">
-            {isWorker ? 'Worker Onboarding' : 'Customer Onboarding'}
+            {isWorker ? 'Worker Onboarding' : isCompany ? 'Company Onboarding' : 'Customer Onboarding'}
           </h1>
           <div className="hidden md:block">
             <ModeToggle />
@@ -144,17 +177,22 @@ export default function OnboardingPage() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
           <div className="mb-8 text-center">
             <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-              {isWorker ? 'Complete Your Worker Profile' : 'Complete Your Profile'}
+              {isWorker
+                ? 'Complete Your Worker Profile'
+                : isCompany
+                ? 'Complete Your Company Profile'
+                : 'Complete Your Profile'}
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-2">
               {isWorker
-                ? 'Help homeowners find and trust you.'
-                : 'Tell us about your home needs.'}
+                ? 'Showcase your skills and get verified to start receiving jobs.'
+                : isCompany
+                ? 'Tell us about your business and hiring needs.'
+                : 'Help us match you with the right professionals.'}
             </p>
           </div>
 
@@ -181,7 +219,6 @@ export default function OnboardingPage() {
                 />
                 <button
                   type="button"
-                  title="Upload profile picture"
                   onClick={() => fileInputRef.current?.click()}
                   className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-2 shadow-md hover:bg-blue-700"
                 >
@@ -193,8 +230,7 @@ export default function OnboardingPage() {
                   onChange={handleFileChange}
                   accept="image/*"
                   className="hidden"
-                  title="Upload profile picture"
-                  aria-label="Upload profile picture"
+                  title="Upload avatar"
                 />
               </div>
             </div>
@@ -218,6 +254,27 @@ export default function OnboardingPage() {
               </div>
             </div>
 
+            {/* Company Name (if company) */}
+            {isCompany && (
+              <div>
+                <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Company Name <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    id="companyName"
+                    type="text"
+                    value={formData.companyName}
+                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                    required
+                    className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                    placeholder="e.g. ABC Construction"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Location */}
             <div>
               <label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -236,51 +293,33 @@ export default function OnboardingPage() {
                 />
               </div>
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                This helps us recommend local jobs.
+                This helps us recommend local opportunities.
               </p>
             </div>
 
-            {/* Role-Specific Fields */}
-            {isWorker ? (
+            {/* Worker-Specific Fields */}
+            {isWorker && (
               <>
                 {/* Bio */}
                 <div>
                   <label htmlFor="bio" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Professional Bio
+                    Professional Bio <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     id="bio"
                     value={formData.bio}
                     onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                     rows={3}
+                    required
                     className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                    placeholder="Tell customers about your experience..."
+                    placeholder="Describe your experience, certifications, and services..."
                   />
-                </div>
-
-                {/* Hourly Rate */}
-                <div>
-                  <label htmlFor="hourlyRate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Hourly Rate (ZAR)
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400">R</span>
-                    <input
-                      id="hourlyRate"
-                      type="number"
-                      value={formData.hourlyRate}
-                      onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
-                      min="0"
-                      className="w-full pl-8 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                      placeholder="0"
-                    />
-                  </div>
                 </div>
 
                 {/* Skills */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Skills
+                    Skills <span className="text-red-500">*</span>
                   </label>
                   <div className="flex gap-2 mb-2">
                     <input
@@ -316,46 +355,116 @@ export default function OnboardingPage() {
                     ))}
                   </div>
                 </div>
-              </>
-            ) : (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Preferred Job Categories
-                </label>
-                <div className="flex gap-2 mb-2">
-                  <input
-                    type="text"
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    placeholder="e.g. Electricians"
-                    className="flex-1 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddCategory}
-                    className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-700"
-                  >
-                    Add
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {formData.preferredCategories.map((cat, i) => (
-                    <span
-                      key={i}
-                      className="inline-flex items-center gap-1 bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 px-2.5 py-1 rounded-full text-sm"
-                    >
-                      {cat}
+
+                {/* Portfolio */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Portfolio Images <span className="text-red-500">*(Min 3)</span>
+                  </label>
+                  <div className="flex gap-2 flex-wrap">
+                    {previewImages.map((src, i) => (
+                      <div key={i} className="relative w-20 h-20">
+                        <img
+                          src={src}
+                          alt={`Preview ${i + 1}`}
+                          className="w-full h-full object-cover rounded-lg border border-gray-300 dark:border-gray-600"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(i)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                    {previewImages.length < 6 && (
                       <button
                         type="button"
-                        onClick={() => handleRemoveCategory(cat)}
-                        className="ml-1 hover:text-purple-600 dark:hover:text-purple-400"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-20 h-20 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-400 hover:border-blue-500 hover:text-blue-500 transition"
                       >
-                        ×
+                        <Camera className="w-6 h-6 mb-1" />
+                        <span className="text-xs">Add</span>
                       </button>
-                    </span>
-                  ))}
+                    )}
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    Show your best work. Minimum 3 images required for approval.
+                  </p>
                 </div>
-              </div>
+
+                {/* Banking Details */}
+                <h3 className="text-lg font-bold text-gray-800 dark:text-white mt-6 mb-4">Banking Details (for Payouts)</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="bankName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Bank Name <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <input
+                        id="bankName"
+                        type="text"
+                        value={formData.bankName}
+                        onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
+                        required
+                        className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                        placeholder="e.g. Standard Bank"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="accountNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Account Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="accountNumber"
+                        type="text"
+                        value={formData.accountNumber}
+                        onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                        required
+                        className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                        placeholder="123456789"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="branchCode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Branch Code <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="branchCode"
+                        type="text"
+                        value={formData.branchCode}
+                        onChange={(e) => setFormData({ ...formData, branchCode: e.target.value })}
+                        required
+                        className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                        placeholder="123456"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="idNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      ID Number <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="idNumber"
+                      type="text"
+                      value={formData.idNumber}
+                      onChange={(e) => setFormData({ ...formData, idNumber: e.target.value })}
+                      required
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                      placeholder="7801015000080"
+                    />
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Required for FICA compliance and payouts.
+                    </p>
+                  </div>
+                </div>
+              </>
             )}
 
             {/* Submit */}
@@ -368,7 +477,7 @@ export default function OnboardingPage() {
                   : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg'
               }`}
             >
-              {loading ? 'Completing...' : 'Complete Onboarding'}
+              {loading ? 'Submitting...' : 'Complete Onboarding'}
             </button>
           </form>
         </div>
