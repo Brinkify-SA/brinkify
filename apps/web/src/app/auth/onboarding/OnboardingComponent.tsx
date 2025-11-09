@@ -396,73 +396,88 @@ export default function OnboardingComponent() {
                 </div>
 
                 {/* Banking Details */}
-                <h3 className="text-lg font-bold text-gray-800 dark:text-white mt-6 mb-4">Banking Details (for Payouts)</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="bankName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Bank Name <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                      <input
-                        id="bankName"
-                        type="text"
-                        value={formData.bankName}
-                        onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
-                        required
-                        className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                        placeholder="e.g. Standard Bank"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="accountNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Account Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        id="accountNumber"
-                        type="text"
-                        value={formData.accountNumber}
-                        onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
-                        required
-                        className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                        placeholder="123456789"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="branchCode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Branch Code <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        id="branchCode"
-                        type="text"
-                        value={formData.branchCode}
-                        onChange={(e) => setFormData({ ...formData, branchCode: e.target.value })}
-                        required
-                        className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                        placeholder="123456"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="idNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      ID Number <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="idNumber"
-                      type="text"
-                      value={formData.idNumber}
-                      onChange={(e) => setFormData({ ...formData, idNumber: e.target.value })}
-                      required
-                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                      placeholder="7801015000080"
-                    />
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      Required for FICA compliance and payouts.
-                    </p>
-                  </div>
-                </div>
+<h3 className="text-lg font-bold text-gray-800 dark:text-white mt-6 mb-4">
+  Banking Details (for Payouts)
+</h3>
+<div className="space-y-4">
+  <div>
+    <label htmlFor="bankName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+      Select Your Bank <span className="text-red-500">*</span>
+    </label>
+    <div className="relative">
+      <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+      <select
+        id="bankName"
+        value={formData.bankName}
+        onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
+        required
+        className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+      >
+        <option value="">-- Select Bank --</option>
+        <option value="Absa Bank">Absa Bank</option>
+        <option value="Standard Bank">Standard Bank</option>
+        <option value="First National Bank (FNB)">First National Bank (FNB)</option>
+        <option value="Nedbank">Nedbank</option>
+        <option value="Capitec Bank">Capitec Bank</option>
+        <option value="TymeBank">TymeBank</option>
+        <option value="African Bank">African Bank</option>
+        <option value="Discovery Bank">Discovery Bank</option>
+        <option value="Investec">Investec</option>
+        <option value="Old Mutual Bank">Old Mutual Bank</option>
+      </select>
+    </div>
+  </div>
+
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+      <label htmlFor="accountNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        Account Number <span className="text-red-500">*</span>
+      </label>
+      <input
+        id="accountNumber"
+        type="text"
+        value={formData.accountNumber}
+        onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+        required
+        className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+        placeholder="123456789"
+      />
+    </div>
+    <div>
+      <label htmlFor="branchCode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        Branch Code <span className="text-red-500">*</span>
+      </label>
+      <input
+        id="branchCode"
+        type="text"
+        value={formData.branchCode}
+        onChange={(e) => setFormData({ ...formData, branchCode: e.target.value })}
+        required
+        className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+        placeholder="e.g. 250655"
+      />
+    </div>
+  </div>
+
+  <div>
+    <label htmlFor="idNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+      ID Number <span className="text-red-500">*</span>
+    </label>
+    <input
+      id="idNumber"
+      type="text"
+      value={formData.idNumber}
+      onChange={(e) => setFormData({ ...formData, idNumber: e.target.value })}
+      required
+      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+      placeholder="7801015000080"
+    />
+    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+      Required for FICA compliance and payouts.
+    </p>
+  </div>
+</div>
+
               </>
             )}
 
