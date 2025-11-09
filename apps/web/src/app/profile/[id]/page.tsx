@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
 import {
   MapPin,
   Star,
-  Briefcase,
   MessageCircle,
   ArrowLeft,
   Link as LinkIcon,
@@ -16,7 +15,8 @@ import {
 const MOCK_WORKER = {
   id: 'user_123',
   name: 'Thabo Nkosi',
-  avatar: 'https://ui-avatars.com/api/?name=Thabo+Nkosi&background=4F46E5&color=fff',
+  avatar:
+    'https://ui-avatars.com/api/?name=Thabo+Nkosi&background=4F46E5&color=fff',
   location: 'Johannesburg, Sandton',
   role: 'worker',
   bio: 'Certified electrician with 5+ years of experience in residential and commercial projects. Committed to quality and safety.',
@@ -31,23 +31,20 @@ const MOCK_WORKER = {
   ],
 };
 
-export default function PublicProfilePage({ params }: { params: { id: string } }) {
+export default function PublicProfilePage() {
   const router = useRouter();
+  const params = useParams(); // ✅ correct for client components
   const [worker, setWorker] = useState<typeof MOCK_WORKER | null>(null);
 
   useEffect(() => {
-    // In a real app, you'd fetch the worker data based on params.id
-    setWorker(MOCK_WORKER);
-  }, [params.id]);
+    // In a real app, you'd fetch worker data based on params.id
+    if (params?.id) {
+      setWorker(MOCK_WORKER);
+    }
+  }, [params?.id]);
 
-  const handleBack = () => {
-    router.back();
-  };
-
-  const handleContact = () => {
-    // This would likely initiate a conversation or lead to a contact form
-    router.push('/messages');
-  };
+  const handleBack = () => router.back();
+  const handleContact = () => router.push('/messages');
 
   if (!worker) {
     return (
@@ -98,7 +95,9 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
                 <div className="flex items-center justify-center sm:justify-start gap-2 mt-2">
                   <Star className="w-5 h-5 text-yellow-500" />
                   <span className="font-bold">{worker.rating}</span>
-                  <span className="text-gray-500">({worker.reviews} reviews)</span>
+                  <span className="text-gray-500">
+                    ({worker.reviews} reviews)
+                  </span>
                 </div>
               </div>
             </div>
@@ -126,11 +125,15 @@ export default function PublicProfilePage({ params }: { params: { id: string } }
             <h2 className="text-xl font-bold mb-4">Details</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <h3 className="font-semibold text-gray-600 dark:text-gray-400">Hourly Rate</h3>
+                <h3 className="font-semibold text-gray-600 dark:text-gray-400">
+                  Hourly Rate
+                </h3>
                 <p className="font-bold text-lg">R {worker.hourlyRate}</p>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-600 dark:text-gray-400">Skills</h3>
+                <h3 className="font-semibold text-gray-600 dark:text-gray-400">
+                  Skills
+                </h3>
                 <div className="flex flex-wrap gap-2 mt-1">
                   {worker.skills.map((skill, i) => (
                     <span
