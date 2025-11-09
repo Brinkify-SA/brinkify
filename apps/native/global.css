@@ -48,3 +48,11 @@
     --ring: 210 100% 43%; /* match primary */
   }
 }
+
+.button {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: var(--radius);
+  padding: 0.5rem 1rem;
+  border: none;
+}
