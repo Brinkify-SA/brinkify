@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
 import { User, Mail, MapPin, Camera, Briefcase, Home, Building, Tag, CreditCard } from 'lucide-react';
-
+export const dynamic = 'force-dynamic';
 export default function OnboardingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
