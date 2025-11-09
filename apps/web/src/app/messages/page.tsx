@@ -11,13 +11,13 @@ import { MessageSquare, MapPin, Briefcase, Home } from 'lucide-react';
 const MOCK_CURRENT_USER = {
   id: 'user_456', // ← Changed to customer ID for testing
   name: 'Sarah K.',
-  role: 'customer', // ← Try 'worker' or 'customer'
+  role: 'worker', // ← Try 'worker' or 'customer'
   avatar: 'https://ui-avatars.com/api/?name=Sarah+K&background=10B981&color=fff',
 };
 
 // 📋 Generate mock conversations dynamically based on current user
 function generateMockConversations(currentUser: typeof MOCK_CURRENT_USER) {
-  if (currentUser.role === 'worker') {
+  if (currentUser.role === 'customer') {
     // Worker sees conversations with customers
     return [
       {
@@ -148,11 +148,18 @@ export default function MessagesPage() {
 
       {/* Main Content */}
       <main className="flex-grow container mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Messages</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {isWorker ? 'Your conversations with homeowners' : 'Your conversations with workers'}
-          </p>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Messages</h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              {isWorker ? 'Your conversations with homeowners' : 'Your conversations with workers'}
+            </p>
+          </div>
+          {!isWorker && (
+            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">
+              New Message
+            </button>
+          )}
         </div>
 
         {conversations.length === 0 ? (

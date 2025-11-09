@@ -293,74 +293,53 @@ function JobCard({
   isWorker: boolean;
   onViewDetails: () => void;
 }) {
+  const getStatusChip = (status: string) => {
+    switch (status) {
+      case 'in-progress':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+      case 'assigned':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+    }
+  };
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
-      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-        <div className="flex-1">
-          <h3 className="font-bold text-lg text-gray-800 dark:text-white">{job.title}</h3>
-
-          <div className="mt-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-            {isWorker ? (
-              <>
-                <User className="w-4 h-4" />
-                <span>{job.customerName}</span>
-              </>
-            ) : (
-              <>
-                <Briefcase className="w-4 h-4" />
-                <span>{job.workerName}</span>
-              </>
-            )}
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700 transition hover:shadow-md">
+      <div className="flex justify-between items-start">
+        <h3 className="font-bold text-lg text-gray-800 dark:text-white">{job.title}</h3>
+        {type === 'current' && (
+          <span className={`text-xs px-2 py-1 rounded font-medium ${getStatusChip(job.status)}`}>
+            {job.status === 'in-progress' ? 'In Progress' : 'Assigned'}
+          </span>
+        )}
+        {type === 'history' && job.rating && (
+          <div className="flex items-center gap-1">
+            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+            <span className="text-sm font-medium">{job.rating}.0</span>
           </div>
+        )}
+      </div>
 
-          <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
-            <div className="flex items-center gap-1">
-              <MapPin className="w-4 h-4" />
-              {job.location}
-            </div>
-            <div className="font-medium">{job.budget}</div>
-          </div>
-
-          {type === 'history' && job.completedDate && (
-            <div className="mt-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <Calendar className="w-4 h-4" />
-              Completed on {job.completedDate}
-            </div>
-          )}
-
-          {type === 'current' && job.startDate && (
-            <div className="mt-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <Clock className="w-4 h-4" />
-              Started {job.startDate}
-            </div>
-          )}
+      <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+        <div className="flex items-center gap-2">
+          {isWorker ? <User className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />}
+          <span>{isWorker ? job.customerName : job.workerName}</span>
         </div>
-
-        <div className="flex flex-col items-end gap-3">
-          {type === 'history' && job.rating !== undefined && (
-            <div className="flex items-center gap-1">
-              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-              <span className="text-sm font-medium">{job.rating}.0</span>
-            </div>
-          )}
-
-          {type === 'current' && (
-            <span className={`text-xs px-2 py-1 rounded ${
-              job.status === 'in-progress'
-                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
-                : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-            }`}>
-              {job.status === 'in-progress' ? 'In Progress' : 'Assigned'}
-            </span>
-          )}
-
-          <button
-            onClick={onViewDetails}
-            className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium"
-          >
-            View Details
-          </button>
+        <div className="flex items-center gap-2 mt-1">
+          <MapPin className="w-4 h-4" />
+          <span>{job.location}</span>
         </div>
+      </div>
+
+      <div className="mt-4 flex justify-between items-center">
+        <span className="font-bold text-gray-800 dark:text-white">{job.budget}</span>
+        <button
+          onClick={onViewDetails}
+          className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium"
+        >
+          View Details
+        </button>
       </div>
     </div>
   );

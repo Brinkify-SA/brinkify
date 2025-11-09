@@ -10,6 +10,7 @@ import { Users, MapPin, Star, Award, Briefcase, Rocket } from 'lucide-react';
 export default function AboutPage() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false); // Mock auth state
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
@@ -58,8 +59,17 @@ export default function AboutPage() {
               <button onClick={() => navigate('/')} className="text-left text-lg font-medium">Home</button>
               <button onClick={() => navigate('/explore')} className="text-left text-lg font-medium">Explore</button>
               <button onClick={() => navigate('/about')} className="text-left text-lg font-medium">About Us</button>
-              <button onClick={() => navigate('/profile/edit')} className="text-left text-lg font-medium">Edit Profile</button>
-              <button onClick={handleLogout} className="text-left text-lg font-medium">Log Out</button>
+              {loggedIn ? (
+                <>
+                  <button onClick={() => navigate('/profile/edit')} className="text-left text-lg font-medium">Edit Profile</button>
+                  <button onClick={handleLogout} className="text-left text-lg font-medium">Log Out</button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => navigate('/auth/login')} className="text-left text-lg font-medium">Login</button>
+                  <button onClick={() => navigate('/auth/signup')} className="text-left text-lg font-medium">Sign Up</button>
+                </>
+              )}
             </nav>
           </div>
         </div>

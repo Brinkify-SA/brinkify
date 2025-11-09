@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
-import { User, Mail, MapPin, Camera, Star, Briefcase, Home, Tag, X } from 'lucide-react';
+import { User, Mail, MapPin, Camera, Star, Briefcase, Home, Tag, X, Link as LinkIcon, Banknote } from 'lucide-react';
 
 // 🔒 Mock user data — replace with real auth + API later
 const MOCK_USER = {
@@ -19,6 +19,15 @@ const MOCK_USER = {
   skills: ['Electrical', 'Lighting', 'Wiring'],
   bio: 'Certified electrician with 5+ years of experience.',
   hourlyRate: '450',
+  portfolio: [
+    { title: 'Kitchen Renovation', url: 'https://example.com/project-1' },
+    { title: 'Office Lighting Setup', url: 'https://example.com/project-2' },
+  ],
+  banking: {
+    bankName: 'FNB',
+    accountNumber: '123456789',
+    branchCode: '250655',
+  },
   // Customer-specific
   preferredCategories: ['Electricians', 'Plumbers'],
 };
@@ -37,6 +46,12 @@ export default function EditProfilePage() {
     skills: [] as string[],
     bio: '',
     hourlyRate: '',
+    portfolio: [] as { title: string; url: string }[],
+    banking: {
+      bankName: '',
+      accountNumber: '',
+      branchCode: '',
+    },
     // Customer
     preferredCategories: [] as string[],
   });
@@ -55,6 +70,8 @@ export default function EditProfilePage() {
       skills: [...MOCK_USER.skills],
       bio: MOCK_USER.bio,
       hourlyRate: MOCK_USER.hourlyRate,
+      portfolio: [...MOCK_USER.portfolio],
+      banking: { ...MOCK_USER.banking },
       preferredCategories: [...MOCK_USER.preferredCategories],
     });
   }, []);
@@ -372,6 +389,55 @@ export default function EditProfilePage() {
                         </button>
                       </span>
                     ))}
+                  </div>
+                </div>
+
+                {/* Portfolio */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Portfolio
+                  </label>
+                  {formData.portfolio.map((item, index) => (
+                    <div key={index} className="flex items-center gap-2 mb-2">
+                      <LinkIcon className="w-4 h-4 text-gray-400" />
+                      <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
+                        {item.title}
+                      </a>
+                    </div>
+                  ))}
+                  {/* Add portfolio item form could be added here */}
+                </div>
+
+                {/* Banking Details */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Banking Details
+                  </label>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Banknote className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                      <input
+                        type="text"
+                        value={formData.banking.bankName}
+                        onChange={(e) => setFormData({ ...formData, banking: { ...formData.banking, bankName: e.target.value } })}
+                        placeholder="Bank Name"
+                        className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg"
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      value={formData.banking.accountNumber}
+                      onChange={(e) => setFormData({ ...formData, banking: { ...formData.banking, accountNumber: e.target.value } })}
+                      placeholder="Account Number"
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg"
+                    />
+                    <input
+                      type="text"
+                      value={formData.banking.branchCode}
+                      onChange={(e) => setFormData({ ...formData, banking: { ...formData.banking, branchCode: e.target.value } })}
+                      placeholder="Branch Code"
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg"
+                    />
                   </div>
                 </div>
               </>

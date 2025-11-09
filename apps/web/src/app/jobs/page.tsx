@@ -112,16 +112,50 @@ export default function JobsPage() {
 
   const handleApply = (jobId: string) => {
     console.log(`Applying to job: ${jobId}`);
+    // In a real app, you'd send this to a backend.
+    // For this mock, we'll just log it and navigate.
+    alert('Application submitted!');
     router.push('/my-jobs');
   };
 
   const handleApprove = (jobId: string, workerId: string) => {
     console.log(`Approving worker ${workerId} for job ${jobId}`);
-    router.push('/my-jobs');
+    setJobs((prevJobs) =>
+      prevJobs.map((job) => {
+        if (job.id === jobId) {
+          return {
+            ...job,
+            status: 'assigned',
+            workerId: workerId,
+            applicants: job.applicants.map((applicant: any) =>
+              applicant.id === workerId
+                ? { ...applicant, status: 'approved' }
+                : { ...applicant, status: 'denied' }
+            ),
+          };
+        }
+        return job;
+      })
+    );
   };
 
   const handleDeny = (jobId: string, workerId: string) => {
     console.log(`Denying worker ${workerId} for job ${jobId}`);
+    setJobs((prevJobs) =>
+      prevJobs.map((job) => {
+        if (job.id === jobId) {
+          return {
+            ...job,
+            applicants: job.applicants.map((applicant: any) =>
+              applicant.id === workerId
+                ? { ...applicant, status: 'denied' }
+                : applicant
+            ),
+          };
+        }
+        return job;
+      })
+    );
   };
 
   const handleMessage = (conversationId?: string) => {

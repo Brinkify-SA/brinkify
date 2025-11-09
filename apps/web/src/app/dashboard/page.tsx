@@ -11,9 +11,10 @@ import { Home, Briefcase, MessageSquare, Star, Wallet, Settings, LogOut, User as
 // 🔒 Mock user — include location for completeness
 const MOCK_USER = {
   name: 'Thabo N.',
-  role: 'customer', // Change to 'worker' to test worker view
+  role: 'worker', // Change to 'worker' to test worker view
   avatar: 'https://ui-avatars.com/api/?name=Thabo+N&background=4F46E5&color=fff',
   location: 'Johannesburg, Sandton',
+  verified: false, // Add verification status
 };
 
 export default function DashboardPage() {
@@ -117,6 +118,15 @@ export default function DashboardPage() {
                   ? `Available in ${user.location} • Manage your jobs and grow your reputation.`
                   : `Based in ${user.location} • Find trusted professionals for your home.`}
               </p>
+              {user.role === 'worker' && !user.verified && (
+                <div className="mt-2 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-2 rounded-md">
+                  <p className="font-bold">Account Not Verified</p>
+                  <p className="text-sm">Complete your profile to get verified and start applying for jobs.</p>
+                  <button className="mt-1 text-sm font-bold text-yellow-800 hover:underline">
+                    Get Verified
+                  </button>
+                </div>
+              )}
             </div>
             <div className="mt-4 sm:mt-0">
               <img
