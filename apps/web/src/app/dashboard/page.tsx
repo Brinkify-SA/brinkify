@@ -11,7 +11,7 @@ import { Home, Briefcase, MessageSquare, Star, Wallet, Settings, LogOut, User as
 // 🔒 Mock user — include location for completeness
 const MOCK_USER = {
   name: 'Thabo N.',
-  role: 'worker', // Change to 'worker' to test worker view
+  role: 'customer', // Change to 'worker' to test worker view
   avatar: 'https://ui-avatars.com/api/?name=Thabo+N&background=4F46E5&color=fff',
   location: 'Johannesburg, Sandton',
 };

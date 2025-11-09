@@ -17,12 +17,13 @@
     "ios": "expo run:ios"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.80.0",
     "dotenv": "^17.2.2",
-    "next": "^16.0.0",
-    "zod": "^4.1.11",
     "expo": "~54.0.13",
+    "next": "^16.0.0",
     "react": "19.1.0",
-    "react-native": "0.81.4"
+    "react-native": "0.81.4",
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.0",
