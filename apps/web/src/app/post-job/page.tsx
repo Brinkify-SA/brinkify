@@ -44,8 +44,8 @@ export default function PostJobPage() {
     description: '',
     category: '',
     location: '',
-    budgetType: 'fixed' as 'fixed' | 'hourly',
-    budgetAmount: '',
+    minBudget: '',
+    maxBudget: '',
     preferredDate: '',
     images: [] as string[],
   });
@@ -131,7 +131,7 @@ export default function PostJobPage() {
     setLoading(true);
     setMessage(null);
 
-    if (!formData.title.trim() || !formData.description.trim() || !formData.category || !formData.location.trim() || !formData.budgetAmount.trim()) {
+    if (!formData.title.trim() || !formData.description.trim() || !formData.category || !formData.location.trim()) {
       setMessage({ type: 'error', text: 'Please fill in all required fields.' });
       setLoading(false);
       return;
@@ -307,37 +307,40 @@ export default function PostJobPage() {
             {/* Budget */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Budget <span className="text-red-500">*</span>
+                Budget (Optional)
               </label>
-<div className="flex flex-col sm:flex-row gap-3">
-  <div className="flex-1">
-    <label htmlFor="budgetType" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-      Budget Type
-    </label>
-    <select
-      id="budgetType"
-      value={formData.budgetType}
-      onChange={(e) => setFormData({ ...formData, budgetType: e.target.value as any })}
-      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-    >
-      <option value="fixed">Fixed Price</option>
-      <option value="hourly">Hourly Rate</option>
-    </select>
-  </div>
-   <div className="flex-1 relative">
-      {/* 🇿🇦 Replaced $ icon with Rand symbol */}
-      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-semibold">R</span>
-      <input
-        type="number"
-        value={formData.budgetAmount}
-        onChange={(e) => setFormData({ ...formData, budgetAmount: e.target.value })}
-        min="0"
-        placeholder="0"
-        required
-        className="w-full pl-8 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-      />
-    </div>
-</div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1 relative">
+                  <label htmlFor="minBudget" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Minimum Budget
+                  </label>
+                  <span className="absolute left-3 top-10 transform -translate-y-1/2 text-gray-500 font-semibold">R</span>
+                  <input
+                    id="minBudget"
+                    type="number"
+                    value={formData.minBudget}
+                    onChange={(e) => setFormData({ ...formData, minBudget: e.target.value })}
+                    min="0"
+                    placeholder="e.g. 500"
+                    className="w-full pl-8 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                  />
+                </div>
+                <div className="flex-1 relative">
+                  <label htmlFor="maxBudget" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Maximum Budget
+                  </label>
+                  <span className="absolute left-3 top-10 transform -translate-y-1/2 text-gray-500 font-semibold">R</span>
+                  <input
+                    id="maxBudget"
+                    type="number"
+                    value={formData.maxBudget}
+                    onChange={(e) => setFormData({ ...formData, maxBudget: e.target.value })}
+                    min="0"
+                    placeholder="e.g. 1500"
+                    className="w-full pl-8 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Preferred Date */}
