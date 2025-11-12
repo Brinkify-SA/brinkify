@@ -18,8 +18,9 @@ import {
 const MOCK_USER = {
   id: 'user_456',
   name: 'Sarah K.',
-  role: 'customer', // Try 'worker' or 'customer'
+  role: 'worker', // Try 'worker' or 'customer'
   location: 'Johannesburg, Sandton',
+  plan_name: 'Basic', // Add user's plan
 };
 
 const MOCK_JOBS = {
@@ -81,6 +82,7 @@ export default function JobsPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<typeof MOCK_USER | null>(null);
   const [jobs, setJobs] = useState<any[]>([]);
+  const [appliedJobsThisMonth, setAppliedJobsThisMonth] = useState(4); // Mock applied jobs
 
   useEffect(() => {
     setUser(MOCK_USER);
@@ -173,6 +175,47 @@ export default function JobsPage() {
 
   const isWorker = user.role === 'worker';
   const userCity = user.location.split(',')[0]?.trim() || user.location;
+
+  if (isWorker) {
+    const maxLeads = user.plan_name === 'Basic' ? 5 : 
+                     user.plan_name === 'Pro' ? 10 : 30;
+
+    if (appliedJobsThisMonth >= maxLeads) {
+      return (
+        <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors">
+          <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
+            <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+              <button
+                onClick={handleBackToDashboard}
+                className="flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                <span className="hidden sm:inline">Dashboard</span>
+              </button>
+              <h1 className="text-lg font-bold text-gray-800 dark:text-white md:hidden">
+                Jobs
+              </h1>
+              <div className="hidden md:block">
+                <ModeToggle />
+              </div>
+            </div>
+          </header>
+          <main className="flex-grow container mx-auto px-4 py-8">
+            <div className="bg-yellow-100 dark:bg-yellow-900/30 border-l-4 border-yellow-500 text-yellow-700 dark:text-yellow-300 p-4 rounded-lg">
+              <p className="font-bold">You have reached your monthly limit</p>
+              <p>You’ve used all {maxLeads} job leads this month.</p>
+              <button 
+                onClick={() => router.push('/pricing' as any)}
+                className="mt-2 text-blue-600 hover:underline font-semibold"
+              >
+                Upgrade to apply to more jobs
+              </button>
+            </div>
+          </main>
+        </div>
+      );
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors">

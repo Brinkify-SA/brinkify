@@ -14,7 +14,7 @@ import {
 // Mock worker data
 const MOCK_WORKER = {
   id: 'user_123',
-  name: 'Thabo Nkosi',
+  name: 'Kamo Nkosi',
   avatar:
     'https://ui-avatars.com/api/?name=Thabo+Nkosi&background=4F46E5&color=fff',
   location: 'Johannesburg, Sandton',

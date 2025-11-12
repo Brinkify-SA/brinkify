@@ -11,7 +11,7 @@ import { Home, Briefcase, MessageSquare, Star, Wallet, Settings, LogOut, User as
 // 🔒 Mock user — include location for completeness
 const MOCK_USER = {
   name: 'Thabo N.',
-  role: 'customer', // Change to 'worker' to test worker view
+  role: 'worker', // Change to 'worker' to test worker view
   avatar: 'https://ui-avatars.com/api/?name=Thabo+N&background=4F46E5&color=fff',
   location: 'Johannesburg, Sandton',
   verified: false, // Add verification status
@@ -198,7 +198,7 @@ function WorkerDashboard() {
       {/* ✅ Quick Actions — now includes Messages for Workers */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
         <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <Link href="/jobs" className="flex flex-col items-center justify-center p-4 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition">
             <Briefcase className="text-blue-600 dark:text-blue-400 mb-2" />
             <span>View Jobs</span>
@@ -206,6 +206,10 @@ function WorkerDashboard() {
           <Link href="/messages" className="flex flex-col items-center justify-center p-4 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition">
             <MessageSquare className="text-blue-600 dark:text-blue-400 mb-2" />
             <span>Messages</span>
+          </Link>
+          <Link href={"/pricing" as any} className="flex flex-col items-center justify-center p-4 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition">
+            <Wallet className="text-blue-600 dark:text-blue-400 mb-2" />
+            <span>View Plans</span>
           </Link>
         </div>
       </div>
