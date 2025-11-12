@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.9",
     "@swc/helpers": "^0.5.15",
     "@tanstack/react-form": "^1.12.3",
     "@tanstack/react-query": "^5.85.5",

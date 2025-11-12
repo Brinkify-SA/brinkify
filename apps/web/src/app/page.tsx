@@ -151,7 +151,15 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
-
+         <div className="bg-blue-50 dark:bg-gray-800 p-8 rounded-xl text-center shadow-sm border border-gray-100 dark:border-gray-700">
+              
+ <button
+              onClick={() => navigateAndClose('/pricing' )}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
+            >
+              View Pricing Plans
+            </button>
+             </div>
         {/* Features Section */}
         <section className="py-16 bg-gray-50 dark:bg-gray-900 text-center">
           <div className="container mx-auto px-4">

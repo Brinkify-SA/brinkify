@@ -239,10 +239,8 @@ function PlanCard({ plan, type }: { plan: any; type: 'worker' | 'company' }) {
           onClick={() => {
             if (isEnterprise) {
               window.location.href = 'mailto:support@brinkifysa.co.za?subject=Enterprise Plan Inquiry';
-            } else if (plan.price === 'Free') {
-              window.location.href = '/auth/signup?role=' + (type === 'worker' ? 'worker' : 'company');
             } else {
-              alert('7-day free trial coming soon! For now, sign up for free and upgrade later.');
+              window.location.href = '/auth/signup?role=' + (type === 'worker' ? 'worker' : 'company') + '&plan=' + plan.name;
             }
           }}
           className={`w-full mt-6 py-3 rounded-lg font-semibold ${

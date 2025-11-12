@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
 import { Home, Briefcase, MessageSquare, Star, Wallet, Settings, LogOut, User as UserIcon } from 'lucide-react';
+import SubscriptionModal from '@/components/SubscriptionModal';
 
 // 🔒 Mock user — include location for completeness
 const MOCK_USER = {
@@ -15,15 +16,20 @@ const MOCK_USER = {
   avatar: 'https://ui-avatars.com/api/?name=Thabo+N&background=4F46E5&color=fff',
   location: 'Johannesburg, Sandton',
   verified: false, // Add verification status
+  plan_name: 'Basic', // Add user's plan
 };
 
 export default function DashboardPage() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<typeof MOCK_USER | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     setUser(MOCK_USER);
+    if (MOCK_USER.role === 'worker' && MOCK_USER.plan_name === 'Basic') {
+      setIsModalOpen(true);
+    }
   }, []);
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
@@ -51,6 +57,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors">
+      <SubscriptionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
       {/* --- Navbar --- */}
       <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
