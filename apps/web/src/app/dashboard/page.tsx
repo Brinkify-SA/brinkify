@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
 import { Home, Briefcase, MessageSquare, Star, Wallet, Settings, LogOut, User as UserIcon, Building, Users, BarChart3 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { Loader } from '@/components/loader'; // Assuming a Loader component exists
+import Loader from '@/components/loader'; // Assuming a Loader component exists
 
 interface UserProfile {
   id: string;
