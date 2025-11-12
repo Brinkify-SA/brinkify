@@ -5,48 +5,45 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
 import { ArrowLeft, Send } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import Loader from '@/components/loader'; // Assuming a Loader component exists
 
-// 🔒 Mock current user — toggle this to test both roles
-const MOCK_CURRENT_USER = {
-  id: 'user_456', // ← Change to 'user_123' for worker
-  name: 'Sarah K.',
-  role: 'customer', // ← 'worker' or 'customer'
-  avatar: 'https://ui-avatars.com/api/?name=Sarah+K&background=10B981&color=fff',
-};
+interface UserProfile {
+  id: string;
+  full_name: string;
+  role: 'worker' | 'customer' | 'company';
+  avatar_url: string;
+}
 
-// 📋 Generate mock conversations dynamically
-function getMockConversations(currentUser: typeof MOCK_CURRENT_USER) {
-  if (currentUser.role === 'worker') {
-    return {
-      conv_001: {
-        id: 'conv_001',
-        participants: [
-          currentUser,
-          { id: 'user_456', name: 'Sarah K.', role: 'customer', avatar: 'https://ui-avatars.com/api/?name=Sarah+K&background=10B981&color=fff' },
-        ],
-        job: { id: 'job_002', title: 'Install ceiling fan', location: 'Johannesburg, Sandton' },
-        messages: [
-          { id: 'm1', senderId: 'user_456', text: 'Hi Thabo! Are you available to install a ceiling fan this weekend?', timestamp: '2025-10-25T10:00:00' },
-          { id: 'm2', senderId: 'user_123', text: 'Hi Sarah! Yes, I’m available on Saturday morning.', timestamp: '2025-10-25T10:05:00' },
-        ],
-      },
-    };
-  } else {
-    return {
-      conv_001: {
-        id: 'conv_001',
-        participants: [
-          currentUser,
-          { id: 'user_123', name: 'Thabo N.', role: 'worker', avatar: 'https://ui-avatars.com/api/?name=Thabo+N&background=4F46E5&color=fff' },
-        ],
-        job: { id: 'job_002', title: 'Install ceiling fan', location: 'Johannesburg, Sandton' },
-        messages: [
-          { id: 'm1', senderId: 'user_456', text: 'Hi Thabo! Are you available to install a ceiling fan this weekend?', timestamp: '2025-10-25T10:00:00' },
-          { id: 'm2', senderId: 'user_123', text: 'Hi Sarah! Yes, I’m available on Saturday morning.', timestamp: '2025-10-25T10:05:00' },
-        ],
-      },
-    };
-  }
+interface Message {
+  id: string;
+  created_at: string;
+  conversation_id: string;
+  sender_id: string;
+  text: string;
+}
+
+interface ConversationDetail {
+  id: string;
+  created_at: string;
+  job_id?: string;
+  customer_id: string;
+  worker_id: string;
+  profiles_customer: {
+    id: string;
+    full_name: string;
+    avatar_url: string;
+  }[]; // Changed to array
+  profiles_worker: {
+    id: string;
+    full_name: string;
+    avatar_url: string;
+  }[]; // Changed to array
+  jobs?: {
+    title: string;
+    location: string;
+  }[]; // Changed to array
+  messages: Message[];
 }
 
 export default function MessageThreadPage() {
@@ -54,61 +51,169 @@ export default function MessageThreadPage() {
   const { id } = useParams();
   const conversationId = Array.isArray(id) ? id[0] : id;
 
-  const [currentUser, setCurrentUser] = useState<typeof MOCK_CURRENT_USER | null>(null);
-  const [conversation, setConversation] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [conversation, setConversation] = useState<ConversationDetail | null>(null);
   const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
+  const supabase = createClient();
 
   useEffect(() => {
-    setCurrentUser(MOCK_CURRENT_USER);
-    const conversations = getMockConversations(MOCK_CURRENT_USER);
-    
-    if (
-      conversationId &&
-      Object.prototype.hasOwnProperty.call(conversations, conversationId)
-    ) {
-      setConversation(conversations[conversationId as keyof typeof conversations]);
-    } else {
-      router.push('/messages');
-    }
-  }, [conversationId, router]);
+    const fetchConversationData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !authUser) {
+          router.push('/auth/login');
+          return;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, full_name, role, avatar_url')
+          .eq('id', authUser.id)
+          .single();
+
+        if (profileError) {
+          throw profileError;
+        }
+
+        setCurrentUser(profile as UserProfile);
+
+        if (!conversationId) {
+          setError('Conversation ID is missing.');
+          setLoading(false);
+          return;
+        }
+
+        const { data: fetchedConversation, error: convError } = await supabase
+          .from('conversations')
+          .select(`
+            id,
+            created_at,
+            job_id,
+            customer_id,
+            worker_id,
+            profiles_customer:customer_id (id, full_name, avatar_url),
+            profiles_worker:worker_id (id, full_name, avatar_url),
+            jobs (title, location),
+            messages (id, created_at, sender_id, text)
+          `)
+          .eq('id', conversationId)
+          .single();
+
+        if (convError) {
+          throw convError;
+        }
+
+        if (!fetchedConversation) {
+          setError('Conversation not found.');
+          setLoading(false);
+          return;
+        }
+
+        // Explicitly cast nested objects to ensure correct types
+        const conversationData: ConversationDetail = {
+          ...fetchedConversation,
+          profiles_customer: fetchedConversation.profiles_customer as { id: string; full_name: string; avatar_url: string; }[],
+          profiles_worker: fetchedConversation.profiles_worker as { id: string; full_name: string; avatar_url: string; }[],
+          jobs: fetchedConversation.jobs as { title: string; location: string; }[],
+          messages: fetchedConversation.messages as Message[],
+        };
+
+        // Sort messages by created_at
+        conversationData.messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+        setConversation(conversationData);
+      } catch (err: any) {
+        console.error('Error fetching conversation data:', err);
+        setError(err.message || 'Failed to load conversation.');
+        router.push('/messages'); // Redirect to messages list on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchConversationData();
+  }, [conversationId, router, supabase]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation?.messages]);
 
-  const handleBack = () => router.push('/dashboard');
+  const handleBack = () => router.push('/messages'); // Go back to messages list
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !currentUser) return;
+    if (!newMessage.trim() || !currentUser || !conversation) return;
 
-    const mockMessage = {
-      id: `m${Date.now()}`,
-      senderId: currentUser.id,
-      text: newMessage,
-      timestamp: new Date().toISOString(),
-    };
+    setLoading(true);
+    try {
+      const { error: insertError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversation.id,
+          sender_id: currentUser.id,
+          text: newMessage.trim(),
+        });
 
-    setConversation((prev: any) => ({
-      ...prev,
-      messages: [...prev.messages, mockMessage],
-    }));
-    setNewMessage('');
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      if (insertError) throw insertError;
+
+      setNewMessage('');
+      router.refresh(); // Re-fetch data to show new message
+    } catch (err: any) {
+      console.error('Error sending message:', err);
+      setError(err.message || 'Failed to send message.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (!currentUser || !conversation) {
+  if (loading) {
+    return <Loader />;
+  }
+
+  if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <p className="text-gray-600 dark:text-gray-300">
-          {conversation === null ? 'Conversation not found' : 'Loading...'}
-        </p>
+        <p className="text-red-600 dark:text-red-400">Error: {error}</p>
+        <button onClick={handleBack} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+          Go Back to Messages
+        </button>
       </div>
     );
   }
 
-  const otherUser = conversation.participants.find((p: any) => p.id !== currentUser.id);
+  if (!currentUser || !conversation) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <p className="text-gray-600 dark:text-gray-300">Conversation not found or user not logged in.</p>
+        <button onClick={handleBack} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+          Go Back to Messages
+        </button>
+      </div>
+    );
+  }
+
+  const otherUser =
+    currentUser.id === conversation.customer_id
+      ? conversation.profiles_worker[0]
+      : conversation.profiles_customer[0];
+
+  if (!otherUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <p className="text-red-600 dark:text-red-400">Other participant not found.</p>
+        <button onClick={handleBack} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+          Go Back to Messages
+        </button>
+      </div>
+    );
+  }
+
   const isWorker = currentUser.role === 'worker';
 
   return (
@@ -122,11 +227,11 @@ export default function MessageThreadPage() {
           </button>
 
           <div className="flex items-center gap-3">
-            <img src={otherUser.avatar} alt={otherUser.name} className="w-10 h-10 rounded-full border-2 border-blue-500" />
+            <img src={otherUser.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherUser.full_name || 'User')}&background=4F46E5&color=fff`} alt={otherUser.full_name} className="w-10 h-10 rounded-full border-2 border-blue-500" />
             <div>
-              <h1 className="font-bold text-gray-800 dark:text-white">{otherUser.name}</h1>
+              <h1 className="font-bold text-gray-800 dark:text-white">{otherUser.full_name}</h1>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                {isWorker ? 'Homeowner' : 'Worker'} • {conversation.job.location}
+                {isWorker ? 'Homeowner' : 'Worker'} • {conversation.jobs?.[0]?.location || 'N/A'}
               </p>
             </div>
           </div>
@@ -139,16 +244,24 @@ export default function MessageThreadPage() {
 
       {/* Chat */}
       <main className="flex-grow container mx-auto px-4 py-4 flex flex-col">
-        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-          <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
-            About job: <span className="font-bold">{conversation.job.title}</span>
-          </p>
-        </div>
+        {conversation.jobs?.[0]?.title && (
+          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
+              About job: <span className="font-bold">{conversation.jobs[0].title}</span>
+            </p>
+          </div>
+        )}
 
         <div className="flex-grow overflow-y-auto pb-4 space-y-4">
-          {conversation.messages.map((msg: any) => {
-            const isOwn = msg.senderId === currentUser.id;
-            const sender = conversation.participants.find((p: any) => p.id === msg.senderId);
+          {conversation.messages.map((msg) => {
+            const isOwn = msg.sender_id === currentUser.id;
+            const sender =
+              msg.sender_id === conversation.customer_id
+                ? conversation.profiles_customer[0]
+                : conversation.profiles_worker[0];
+
+            if (!sender) return null; // Should not happen if data is consistent
+
             return (
               <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-2 rounded-2xl ${
@@ -158,13 +271,13 @@ export default function MessageThreadPage() {
                 }`}>
                   {!isOwn && (
                     <div className="flex items-center gap-2 mb-1">
-                      <img src={sender.avatar} alt={sender.name} className="w-6 h-6 rounded-full" />
-                      <span className="text-xs font-bold text-gray-600 dark:text-gray-300">{sender.name}</span>
+                      <img src={sender.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(sender.full_name || 'User')}&background=4F46E5&color=fff`} alt={sender.full_name} className="w-6 h-6 rounded-full" />
+                      <span className="text-xs font-bold text-gray-600 dark:text-gray-300">{sender.full_name}</span>
                     </div>
                   )}
                   <p>{msg.text}</p>
                   <p className={`text-xs mt-1 ${isOwn ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'}`}>
-                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
               </div>
@@ -184,7 +297,7 @@ export default function MessageThreadPage() {
             />
             <button
               type="submit"
-              disabled={!newMessage.trim()}
+              disabled={!newMessage.trim() || loading}
               className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
               aria-label="Send message"
             >

@@ -1,9 +1,13 @@
 // app/pricing/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { CheckCircle, Crown, Building } from 'lucide-react';
+import { useUser } from '@/lib/supabase/useUser';
+import { supabase } from '@/lib/supabase/api';
+import { toast } from 'sonner';
+import SubscriptionModal from '@/components/SubscriptionModal';
 
 const WORKER_PLANS = [
   {
@@ -114,9 +118,59 @@ const COMPANY_PLANS = [
 
 export default function PricingPage() {
   const [activeTab, setActiveTab] = useState<'workers' | 'companies'>('workers');
+  const { user, loading } = useUser();
+  const [userPlan, setUserPlan] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  const [selectedPlanType, setSelectedPlanType] = useState<'worker' | 'company' | null>(null);
+
+  useEffect(() => {
+    if (user && !loading) {
+      // Fetch user's current plan from database
+      const fetchUserPlan = async () => {
+        const { data, error } = await supabase
+          .from('profiles') // Assuming 'profiles' table stores user plan
+          .select('plan_name')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching user plan:', error);
+          toast.error('Failed to fetch your current plan.');
+        } else if (data) {
+          setUserPlan(data.plan_name);
+        }
+      };
+      fetchUserPlan();
+    }
+  }, [user, loading]);
+
+  const handlePlanAction = (plan: any, type: 'worker' | 'company') => {
+    if (!user) {
+      window.location.href = '/auth/signup?role=' + (type === 'worker' ? 'worker' : 'company') + '&plan=' + plan.name;
+    } else {
+      setSelectedPlan(plan);
+      setSelectedPlanType(type);
+      setIsModalOpen(true);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedPlan(null);
+    setSelectedPlanType(null);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <SubscriptionModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        selectedPlan={selectedPlan}
+        selectedPlanType={selectedPlanType}
+        currentUserPlan={userPlan}
+        userId={user?.id}
+      />
       {/* Hero */}
       <section className="py-16 text-center bg-gradient-to-r from-blue-500 to-blue-600 text-white">
         <h1 className="text-4xl md:text-5xl font-bold mb-4">Choose Your Plan</h1>
@@ -159,13 +213,27 @@ export default function PricingPage() {
           {activeTab === 'workers' ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {WORKER_PLANS.map((plan, i) => (
-                <PlanCard key={i} plan={plan} type="worker" />
+                <PlanCard
+                  key={i}
+                  plan={plan}
+                  type="worker"
+                  onPlanAction={handlePlanAction}
+                  currentUserPlan={userPlan}
+                  userLoggedIn={!!user}
+                />
               ))}
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {COMPANY_PLANS.map((plan, i) => (
-                <PlanCard key={i} plan={plan} type="company" />
+                <PlanCard
+                  key={i}
+                  plan={plan}
+                  type="company"
+                  onPlanAction={handlePlanAction}
+                  currentUserPlan={userPlan}
+                  userLoggedIn={!!user}
+                />
               ))}
             </div>
           )}
@@ -203,15 +271,26 @@ export default function PricingPage() {
 }
 
 // Reusable Plan Card
-function PlanCard({ plan, type }: { plan: any; type: 'worker' | 'company' }) {
+function PlanCard({ plan, type, onPlanAction, currentUserPlan, userLoggedIn }: { plan: any; type: 'worker' | 'company'; onPlanAction: (plan: any, type: 'worker' | 'company') => void; currentUserPlan: string | null; userLoggedIn: boolean }) {
   const Icon = plan.popular ? Crown : CheckCircle;
   const isEnterprise = plan.name === 'Enterprise';
+  const isCurrentPlan = currentUserPlan === plan.name;
+
+  const getButtonText = () => {
+    if (!userLoggedIn) {
+      return plan.cta;
+    }
+    if (isCurrentPlan) {
+      return 'Current Plan';
+    }
+    return 'Change Plan';
+  };
 
   return (
     <div
       className={`bg-white dark:bg-gray-800 rounded-2xl shadow-lg border ${
         plan.popular ? 'ring-2 ring-blue-500 border-blue-500' : 'border-gray-200 dark:border-gray-700'
-      }`}
+      } ${isCurrentPlan ? 'opacity-70 cursor-not-allowed' : ''}`}
     >
       {plan.popular && (
         <div className="bg-blue-500 text-white text-center py-2 rounded-t-2xl font-bold">
@@ -239,19 +318,20 @@ function PlanCard({ plan, type }: { plan: any; type: 'worker' | 'company' }) {
           onClick={() => {
             if (isEnterprise) {
               window.location.href = 'mailto:support@brinkifysa.co.za?subject=Enterprise Plan Inquiry';
-            } else {
-              window.location.href = '/auth/signup?role=' + (type === 'worker' ? 'worker' : 'company') + '&plan=' + plan.name;
+            } else if (!isCurrentPlan) {
+              onPlanAction(plan, type);
             }
           }}
+          disabled={isCurrentPlan && userLoggedIn}
           className={`w-full mt-6 py-3 rounded-lg font-semibold ${
             plan.popular
               ? 'bg-blue-600 hover:bg-blue-700 text-white'
               : isEnterprise
               ? 'bg-purple-600 hover:bg-purple-700 text-white'
               : 'bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white'
-          }`}
+          } ${isCurrentPlan && userLoggedIn ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
-          {plan.cta}
+          {getButtonText()}
         </button>
       </div>
     </div>
