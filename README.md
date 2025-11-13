@@ -45,9 +45,18 @@ brinkify-sa/
 ├── apps/
 │   └── web/         # Fullstack application (Next.js)
 │   ├── native/      # Mobile application (React Native, Expo)
-├── packages/
-│   ├── api/         # API layer / business logic
+
 ```
+
+## Tech Stack
+- Supabase for Auth, DB and Storage - It can scale based on the plan subscribed to.
+- Emails from [Brevo.com](https://brevo.com), affordable transactional emails
+- SMS from [Twilio](https://www.twilio.com/en-us/messaging/channels/sms)
+- Subscriptions from [Payfast.io](https://www.payfast.io)
+- Next.js for full stack development, API is created in the [`apps/web/src/app/api`](/apps/web/src/app/api/) folder.
+  
+- Should the api need to be served to an external client, you should update the [middleware](/apps/web/src/middleware.ts) CORS settings to allow that client.
+- 
 
 ## Available Scripts
 
