@@ -10,46 +10,108 @@ import {
   ArrowLeft,
   Link as LinkIcon,
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import Loader from '@/components/loader'; // Assuming a Loader component exists
 
-// Mock worker data
-const MOCK_WORKER = {
-  id: 'user_123',
-  name: 'Kamo Nkosi',
-  avatar:
-    'https://ui-avatars.com/api/?name=Thabo+Nkosi&background=4F46E5&color=fff',
-  location: 'Johannesburg, Sandton',
-  role: 'worker',
-  bio: 'Certified electrician with 5+ years of experience in residential and commercial projects. Committed to quality and safety.',
-  skills: ['Electrical', 'Lighting', 'Wiring', 'Solar Installation'],
-  hourlyRate: '450',
-  rating: 4.9,
-  reviews: 82,
-  portfolio: [
-    { title: 'Kitchen Renovation', url: 'https://example.com/project-1' },
-    { title: 'Office Lighting Setup', url: 'https://example.com/project-2' },
-    { title: 'Solar Panel Installation', url: 'https://example.com/project-3' },
-  ],
-};
+interface UserProfile {
+  id: string;
+  full_name: string;
+  avatar_url: string;
+  location: string;
+  role: 'worker' | 'customer' | 'company';
+  bio?: string;
+  skills?: string[];
+  hourly_rate?: number;
+  average_rating?: number;
+  portfolio?: string[]; // Array of public URLs
+  reviews_count?: number; // To store the count of reviews
+}
 
 export default function PublicProfilePage() {
   const router = useRouter();
-  const params = useParams(); // ✅ correct for client components
-  const [worker, setWorker] = useState<typeof MOCK_WORKER | null>(null);
+  const params = useParams();
+  const [worker, setWorker] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const supabase = createClient();
 
   useEffect(() => {
-    // In a real app, you'd fetch worker data based on params.id
-    if (params?.id) {
-      setWorker(MOCK_WORKER);
-    }
-  }, [params?.id]);
+    const fetchWorkerProfile = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const profileId = params?.id as string;
+        if (!profileId) {
+          setError('Profile ID is missing.');
+          setLoading(false);
+          return;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', profileId)
+          .single();
+
+        if (profileError) {
+          throw profileError;
+        }
+
+        if (!profile || profile.role !== 'worker') {
+          setError('Worker profile not found or invalid role.');
+          setLoading(false);
+          return;
+        }
+
+        // Fetch reviews count
+        const { count: reviewsCount, error: reviewsError } = await supabase
+          .from('reviews')
+          .select('*', { count: 'exact' })
+          .eq('reviewed_id', profileId);
+
+        if (reviewsError) throw reviewsError;
+
+        setWorker({ ...profile, reviews_count: reviewsCount } as UserProfile);
+      } catch (err: any) {
+        console.error('Error fetching worker profile:', err);
+        setError(err.message || 'Failed to load worker profile.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWorkerProfile();
+  }, [params?.id, supabase]);
 
   const handleBack = () => router.back();
-  const handleContact = () => router.push('/messages');
+  const handleContact = () => {
+    if (worker) {
+      router.push(`/messages/${worker.id}`); // Navigate to a specific conversation with the worker
+    }
+  };
+
+  if (loading) {
+    return <Loader />;
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <p className="text-red-600 dark:text-red-400">Error: {error}</p>
+        <button onClick={handleBack} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+          Go Back
+        </button>
+      </div>
+    );
+  }
 
   if (!worker) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <p className="text-gray-600 dark:text-gray-300">Loading profile...</p>
+        <p className="text-gray-600 dark:text-gray-300">Worker profile not found.</p>
+        <button onClick={handleBack} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+          Go Back
+        </button>
       </div>
     );
   }
@@ -82,21 +144,21 @@ export default function PublicProfilePage() {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-200 dark:border-gray-700">
             <div className="flex flex-col sm:flex-row items-center gap-6">
               <img
-                src={worker.avatar}
-                alt={worker.name}
+                src={worker.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(worker.full_name || 'User')}&background=4F46E5&color=fff`}
+                alt={worker.full_name}
                 className="w-24 h-24 rounded-full border-4 border-blue-200 dark:border-blue-800"
               />
               <div className="text-center sm:text-left">
-                <h1 className="text-2xl font-bold">{worker.name}</h1>
+                <h1 className="text-2xl font-bold">{worker.full_name}</h1>
                 <div className="flex items-center justify-center sm:justify-start gap-2 text-gray-600 dark:text-gray-400 mt-1">
                   <MapPin className="w-4 h-4" />
                   <span>{worker.location}</span>
                 </div>
                 <div className="flex items-center justify-center sm:justify-start gap-2 mt-2">
                   <Star className="w-5 h-5 text-yellow-500" />
-                  <span className="font-bold">{worker.rating}</span>
+                  <span className="font-bold">{worker.average_rating?.toFixed(1) || '0.0'}</span>
                   <span className="text-gray-500">
-                    ({worker.reviews} reviews)
+                    ({worker.reviews_count || 0} reviews)
                   </span>
                 </div>
               </div>
@@ -116,7 +178,7 @@ export default function PublicProfilePage() {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 mt-6 shadow-md border border-gray-200 dark:border-gray-700">
             <h2 className="text-xl font-bold mb-3">About</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-              {worker.bio}
+              {worker.bio || 'No bio provided.'}
             </p>
           </div>
 
@@ -128,21 +190,25 @@ export default function PublicProfilePage() {
                 <h3 className="font-semibold text-gray-600 dark:text-gray-400">
                   Hourly Rate
                 </h3>
-                <p className="font-bold text-lg">R {worker.hourlyRate}</p>
+                <p className="font-bold text-lg">R {worker.hourly_rate || 'N/A'}</p>
               </div>
               <div>
                 <h3 className="font-semibold text-gray-600 dark:text-gray-400">
                   Skills
                 </h3>
                 <div className="flex flex-wrap gap-2 mt-1">
-                  {worker.skills.map((skill, i) => (
-                    <span
-                      key={i}
-                      className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 px-2.5 py-1 rounded-full text-sm"
-                    >
-                      {skill}
-                    </span>
-                  ))}
+                  {(worker.skills && worker.skills.length > 0) ? (
+                    worker.skills.map((skill, i) => (
+                      <span
+                        key={i}
+                        className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 px-2.5 py-1 rounded-full text-sm"
+                      >
+                        {skill}
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">No skills listed.</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -152,18 +218,19 @@ export default function PublicProfilePage() {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 mt-6 shadow-md border border-gray-200 dark:border-gray-700">
             <h2 className="text-xl font-bold mb-4">Portfolio</h2>
             <div className="space-y-4">
-              {worker.portfolio.length > 0 ? (
-                worker.portfolio.map((item, i) => (
+              {(worker.portfolio && worker.portfolio.length > 0) ? (
+                worker.portfolio.map((url, i) => (
                   <a
                     key={i}
-                    href={item.url}
+                    href={url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
                   >
                     <LinkIcon className="w-5 h-5 text-blue-500" />
                     <span className="font-medium text-blue-600 dark:text-blue-400">
-                      {item.title}
+                      {/* Extract filename or use a generic title */}
+                      {url.split('/').pop() || `Portfolio Item ${i + 1}`}
                     </span>
                   </a>
                 ))

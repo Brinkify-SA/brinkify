@@ -6,75 +6,106 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
 import { User, Mail, MapPin, Camera, Star, Briefcase, Home, Tag, X, Link as LinkIcon, Banknote } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import Loader from '@/components/loader'; // Assuming a Loader component exists
 
-// 🔒 Mock user data — replace with real auth + API later
-const MOCK_USER = {
-  id: 'user_123',
-  name: 'Thabo Nkosi',
-  email: 'thabo@example.com',
-  role: 'worker', // Change to 'customer' to test homeowner view
-  location: 'Johannesburg, Sandton',
-  avatar: 'https://ui-avatars.com/api/?name=Thabo+Nkosi&background=4F46E5&color=fff',
-  // Worker-specific
-  skills: ['Electrical', 'Lighting', 'Wiring'],
-  bio: 'Certified electrician with 5+ years of experience.',
-  hourlyRate: '450',
-  portfolio: [
-    { title: 'Kitchen Renovation', url: 'https://example.com/project-1' },
-    { title: 'Office Lighting Setup', url: 'https://example.com/project-2' },
-  ],
-  banking: {
-    bankName: 'FNB',
-    accountNumber: '123456789',
-    branchCode: '250655',
-  },
-  // Customer-specific
-  preferredCategories: ['Electricians', 'Plumbers'],
-};
+interface UserProfile {
+  id: string;
+  full_name: string; // Changed from name to full_name
+  email: string;
+  role: 'worker' | 'customer' | 'company';
+  location: string;
+  avatar_url: string;
+  skills?: string[];
+  bio?: string;
+  hourly_rate?: string;
+  portfolio?: { title: string; url: string }[];
+  bank_name?: string;
+  account_number?: string;
+  branch_code?: string;
+  id_number?: string; // Added id_number
+  preferred_categories?: string[];
+}
 
 export default function EditProfilePage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [user, setUser] = useState<typeof MOCK_USER | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [formData, setFormData] = useState<UserProfile>({
+    id: '',
+    full_name: '', // Changed from name to full_name
     email: '',
+    role: 'worker', // Default role, will be overwritten by fetched data
     location: '',
-    avatar: '',
-    // Worker
-    skills: [] as string[],
+    avatar_url: '',
+    skills: [],
     bio: '',
-    hourlyRate: '',
-    portfolio: [] as { title: string; url: string }[],
-    banking: {
-      bankName: '',
-      accountNumber: '',
-      branchCode: '',
-    },
-    // Customer
-    preferredCategories: [] as string[],
+    hourly_rate: '',
+    portfolio: [],
+    bank_name: '',
+    account_number: '',
+    branch_code: '',
+    id_number: '', // Added id_number
+    preferred_categories: [],
   });
   const [newSkill, setNewSkill] = useState('');
   const [newCategory, setNewCategory] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Set to true initially for data fetching
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const supabase = createClient();
 
   useEffect(() => {
-    setUser(MOCK_USER);
-    setFormData({
-      name: MOCK_USER.name,
-      email: MOCK_USER.email,
-      location: MOCK_USER.location,
-      avatar: MOCK_USER.avatar,
-      skills: [...MOCK_USER.skills],
-      bio: MOCK_USER.bio,
-      hourlyRate: MOCK_USER.hourlyRate,
-      portfolio: [...MOCK_USER.portfolio],
-      banking: { ...MOCK_USER.banking },
-      preferredCategories: [...MOCK_USER.preferredCategories],
-    });
-  }, []);
+    const fetchUserProfile = async () => {
+      setLoading(true);
+      setMessage(null);
+      try {
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !authUser) {
+          router.push('/auth/login');
+          return;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
+
+        if (profileError) {
+          throw profileError;
+        }
+
+        setUser(profile as UserProfile);
+        setFormData({
+          id: profile.id,
+          full_name: profile.full_name || '', // Changed from name to full_name
+          email: authUser.email || '', // Email from auth user
+          role: profile.role || 'worker',
+          location: profile.location || '',
+          avatar_url: profile.avatar_url || '',
+          skills: profile.skills || [],
+          bio: profile.bio || '',
+          hourly_rate: profile.hourly_rate || '',
+          portfolio: profile.portfolio || [],
+          bank_name: profile.bank_name || '',
+          account_number: profile.account_number || '',
+          branch_code: profile.branch_code || '',
+          id_number: profile.id_number || '', // Added id_number
+          preferred_categories: profile.preferred_categories || [],
+        });
+      } catch (err: any) {
+        console.error('Error fetching user profile:', err);
+        setMessage({ type: 'error', text: err.message || 'Failed to load user profile.' });
+        router.push('/auth/login'); // Redirect to login on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, [router, supabase]);
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
@@ -82,7 +113,8 @@ export default function EditProfilePage() {
     router.push(path as any);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     router.push('/auth/login');
   };
 
@@ -90,22 +122,39 @@ export default function EditProfilePage() {
     router.push('/dashboard');
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setFormData((prev) => ({ ...prev, avatar: event.target?.result as string }));
-      };
-      reader.readAsDataURL(file);
+    if (file && user) {
+      setLoading(true);
+      try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+        const filePath = `avatars/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars') // Assuming a 'avatars' bucket exists in Supabase Storage
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+
+        setFormData((prev) => ({ ...prev, avatar_url: publicUrl }));
+        setMessage({ type: 'success', text: 'Avatar uploaded successfully!' });
+      } catch (error: any) {
+        console.error('Error uploading avatar:', error);
+        setMessage({ type: 'error', text: error.message || 'Failed to upload avatar.' });
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
   const handleAddSkill = () => {
-    if (newSkill.trim() && !formData.skills.includes(newSkill.trim())) {
+    if (newSkill.trim() && !formData.skills?.includes(newSkill.trim())) {
       setFormData((prev) => ({
         ...prev,
-        skills: [...prev.skills, newSkill.trim()],
+        skills: [...(prev.skills || []), newSkill.trim()],
       }));
       setNewSkill('');
     }
@@ -114,15 +163,15 @@ export default function EditProfilePage() {
   const handleRemoveSkill = (skill: string) => {
     setFormData((prev) => ({
       ...prev,
-      skills: prev.skills.filter((s) => s !== skill),
+      skills: (prev.skills || []).filter((s) => s !== skill),
     }));
   };
 
   const handleAddCategory = () => {
-    if (newCategory.trim() && !formData.preferredCategories.includes(newCategory.trim())) {
+    if (newCategory.trim() && !formData.preferred_categories?.includes(newCategory.trim())) {
       setFormData((prev) => ({
         ...prev,
-        preferredCategories: [...prev.preferredCategories, newCategory.trim()],
+        preferred_categories: [...(prev.preferred_categories || []), newCategory.trim()],
       }));
       setNewCategory('');
     }
@@ -131,7 +180,7 @@ export default function EditProfilePage() {
   const handleRemoveCategory = (category: string) => {
     setFormData((prev) => ({
       ...prev,
-      preferredCategories: prev.preferredCategories.filter((c) => c !== category),
+      preferred_categories: (prev.preferred_categories || []).filter((c) => c !== category),
     }));
   };
 
@@ -140,22 +189,67 @@ export default function EditProfilePage() {
     setLoading(true);
     setMessage(null);
 
-    try {
-      // ✅ Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    if (!user) {
+      setMessage({ type: 'error', text: 'User not authenticated.' });
+      setLoading(false);
+      return;
+    }
 
-      // ✅ On success: redirect to dashboard
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: formData.full_name, // Changed from name to full_name
+          location: formData.location,
+          avatar_url: formData.avatar_url,
+          skills: formData.skills,
+          bio: formData.bio,
+          hourly_rate: formData.hourly_rate,
+          portfolio: formData.portfolio,
+          bank_name: formData.bank_name,
+          account_number: formData.account_number,
+          branch_code: formData.branch_code,
+          id_number: formData.id_number, // Added id_number
+          preferred_categories: formData.preferred_categories,
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      setMessage({ type: 'success', text: 'Profile updated successfully!' });
       router.push('/dashboard');
-    } catch (err) {
-      setMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });
+    } catch (err: any) {
+      console.error('Error updating profile:', err);
+      setMessage({ type: 'error', text: err.message || 'Failed to update profile. Please try again.' });
+    } finally {
       setLoading(false);
     }
   };
 
+  if (loading) {
+    return <Loader />;
+  }
+
+  if (message?.type === 'error' && !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <p className="text-red-600 dark:text-red-400">Error: {message.text}</p>
+        <button onClick={() => router.push('/auth/login')} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+          Go to Login
+        </button>
+      </div>
+    );
+  }
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+        <p className="text-gray-600 dark:text-gray-300">No user data found. Please log in.</p>
+        <button onClick={() => router.push('/auth/login')} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+          Go to Login
+        </button>
       </div>
     );
   }
@@ -230,7 +324,7 @@ export default function EditProfilePage() {
             <div className="flex flex-col items-center mb-6">
               <div className="relative">
                 <img
-                  src={formData.avatar}
+                  src={formData.avatar_url || 'https://ui-avatars.com/api/?name=User&background=random&color=fff'}
                   alt="Profile"
                   className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-md"
                 />
@@ -256,17 +350,17 @@ export default function EditProfilePage() {
 
             {/* Name */}
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Full Name
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
-                  id="name"
-                  name="name"
+                  id="full_name"
+                  name="full_name"
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  value={formData.full_name}
+                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                   required
                   className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                 />
@@ -285,9 +379,8 @@ export default function EditProfilePage() {
                   name="email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                  className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+                  disabled // Email should not be editable here, it's from auth
+                  className="w-full pl-10 pr-4 py-3 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg cursor-not-allowed"
                 />
               </div>
             </div>
@@ -325,7 +418,7 @@ export default function EditProfilePage() {
                   </label>
                   <textarea
                     id="bio"
-                    value={formData.bio}
+                    value={formData.bio || ''}
                     onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                     rows={3}
                     className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
@@ -343,8 +436,8 @@ export default function EditProfilePage() {
                     <input
                       id="hourlyRate"
                       type="number"
-                      value={formData.hourlyRate}
-                      onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
+                      value={formData.hourly_rate || ''}
+                      onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
                       min="0"
                       className="w-full pl-8 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                       placeholder="0"
@@ -374,7 +467,7 @@ export default function EditProfilePage() {
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {formData.skills.map((skill, i) => (
+                    {(formData.skills || []).map((skill, i) => (
                       <span
                         key={i}
                         className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 px-2.5 py-1 rounded-full text-sm"
@@ -397,7 +490,7 @@ export default function EditProfilePage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Portfolio
                   </label>
-                  {formData.portfolio.map((item, index) => (
+                  {(formData.portfolio || []).map((item, index) => (
                     <div key={index} className="flex items-center gap-2 mb-2">
                       <LinkIcon className="w-4 h-4 text-gray-400" />
                       <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
@@ -418,24 +511,31 @@ export default function EditProfilePage() {
                       <Banknote className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                       <input
                         type="text"
-                        value={formData.banking.bankName}
-                        onChange={(e) => setFormData({ ...formData, banking: { ...formData.banking, bankName: e.target.value } })}
+                        value={formData.bank_name || ''}
+                        onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
                         placeholder="Bank Name"
                         className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg"
                       />
                     </div>
                     <input
                       type="text"
-                      value={formData.banking.accountNumber}
-                      onChange={(e) => setFormData({ ...formData, banking: { ...formData.banking, accountNumber: e.target.value } })}
+                      value={formData.account_number || ''}
+                      onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
                       placeholder="Account Number"
                       className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg"
                     />
                     <input
                       type="text"
-                      value={formData.banking.branchCode}
-                      onChange={(e) => setFormData({ ...formData, banking: { ...formData.banking, branchCode: e.target.value } })}
+                      value={formData.branch_code || ''}
+                      onChange={(e) => setFormData({ ...formData, branch_code: e.target.value })}
                       placeholder="Branch Code"
+                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg"
+                    />
+                    <input
+                      type="text"
+                      value={formData.id_number || ''}
+                      onChange={(e) => setFormData({ ...formData, id_number: e.target.value })}
+                      placeholder="ID Number"
                       className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg"
                     />
                   </div>
@@ -466,7 +566,7 @@ export default function EditProfilePage() {
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {formData.preferredCategories.map((cat, i) => (
+                  {(formData.preferred_categories || []).map((cat, i) => (
                     <span
                       key={i}
                       className="inline-flex items-center gap-1 bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 px-2.5 py-1 rounded-full text-sm"

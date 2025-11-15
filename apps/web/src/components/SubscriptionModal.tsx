@@ -1,9 +1,11 @@
 'use client';
 
-import { Fragment } from 'react';
+import { useState, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle, Crown } from 'lucide-react';
+import { supabase } from '@/lib/supabase/api';
+import { toast } from 'sonner';
 
 const WORKER_PLANS = [
   {
@@ -28,12 +30,82 @@ const WORKER_PLANS = [
   },
 ];
 
-export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const router = useRouter();
+const COMPANY_PLANS = [
+  {
+    name: 'Starter',
+    price: 'R299/mo',
+    features: [
+      'Company profile with logo and business verification badge',
+      'Upload up to 25 project photos or videos',
+      'Access to 20 job leads per month',
+    ],
+    cta: 'Upgrade to Starter',
+  },
+  {
+    name: 'Business',
+    price: 'R499/mo',
+    features: [
+      'Everything in Starter',
+      'Featured listing in top results of your category and region',
+      'Access to unlimited job leads per month',
+    ],
+    cta: 'Upgrade to Business',
+  },
+  {
+    name: 'Enterprise',
+    price: 'R899/mo',
+    features: [
+      'Everything in Business',
+      'Top Featured Listing across provinces',
+      'Unlimited job leads & quote requests',
+    ],
+    cta: 'Upgrade to Enterprise',
+  },
+];
 
-  const handlePlanSelection = (planName: string) => {
-    router.push(`/auth/signup?role=worker&plan=${planName}`);
+export default function SubscriptionModal({
+  isOpen,
+  onClose,
+  selectedPlan,
+  selectedPlanType,
+  currentUserPlan,
+  userId,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  selectedPlan: any;
+  selectedPlanType: 'worker' | 'company' | null;
+  currentUserPlan: string | null;
+  userId: string | undefined;
+}) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  const handlePlanUpdate = async () => {
+    if (!userId || !selectedPlan || !selectedPlanType) {
+      toast.error('Missing user or plan information.');
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await supabase
+      .from('profiles') // Assuming 'profiles' table stores user plan
+      .update({ plan_name: selectedPlan.name, role: selectedPlanType })
+      .eq('id', userId);
+
+    setLoading(false);
+
+    if (error) {
+      console.error('Error updating plan:', error);
+      toast.error('Failed to update your plan. Please try again.');
+    } else {
+      toast.success(`Your plan has been updated to ${selectedPlan.name}!`);
+      onClose();
+      router.refresh(); // Refresh the page to show updated plan
+    }
   };
+
+  const plansToDisplay = selectedPlanType === 'worker' ? WORKER_PLANS : COMPANY_PLANS;
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>
@@ -64,37 +136,36 @@ export default function SubscriptionModal({ isOpen, onClose }: { isOpen: boolean
               <Dialog.Panel className="relative transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl">
                 <div className="p-8">
                   <h2 className="text-2xl font-bold text-center text-gray-800 dark:text-white">
-                    Upgrade Your Plan
+                    {selectedPlan ? `Change to ${selectedPlan.name} Plan` : 'Upgrade Your Plan'}
                   </h2>
                   <p className="mt-2 text-center text-gray-600 dark:text-gray-400">
-                    You are currently on the Basic (Free) plan. Upgrade to unlock more features.
+                    {currentUserPlan
+                      ? `You are currently on the ${currentUserPlan} plan.`
+                      : 'You are currently on the Basic (Free) plan.'}
+                    Upgrade to unlock more features.
                   </p>
 
-                  <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {WORKER_PLANS.map((plan) => (
-                      <div
-                        key={plan.name}
-                        className="bg-gray-50 dark:bg-gray-700 rounded-xl p-6 border border-gray-200 dark:border-gray-600"
+                  {selectedPlan && (
+                    <div className="mt-8 bg-gray-50 dark:bg-gray-700 rounded-xl p-6 border border-gray-200 dark:border-gray-600">
+                      <h3 className="text-xl font-bold text-gray-800 dark:text-white">{selectedPlan.name}</h3>
+                      <p className="mt-2 text-3xl font-bold text-blue-600 dark:text-blue-400">{selectedPlan.price}</p>
+                      <ul className="mt-6 space-y-3">
+                        {selectedPlan.features.map((feature: string, i: number) => (
+                          <li key={i} className="flex items-start">
+                            <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                            <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <button
+                        onClick={handlePlanUpdate}
+                        disabled={loading}
+                        className="w-full mt-8 py-3 rounded-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <h3 className="text-xl font-bold text-gray-800 dark:text-white">{plan.name}</h3>
-                        <p className="mt-2 text-3xl font-bold text-blue-600 dark:text-blue-400">{plan.price}</p>
-                        <ul className="mt-6 space-y-3">
-                          {plan.features.map((feature, i) => (
-                            <li key={i} className="flex items-start">
-                              <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                              <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        <button
-                          onClick={() => handlePlanSelection(plan.name)}
-                          className="w-full mt-8 py-3 rounded-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                          {plan.cta}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                        {loading ? 'Updating...' : `Confirm Upgrade to ${selectedPlan.name}`}
+                      </button>
+                    </div>
+                  )}
 
                   <div className="mt-8 text-center">
                     <button

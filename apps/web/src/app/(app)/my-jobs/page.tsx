@@ -6,115 +6,142 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
 import { Home, Briefcase, MapPin, Clock, Star, User, Calendar, ArrowLeft } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import Loader from '@/components/loader'; // Assuming a Loader component exists
 
-// 🔒 Mock user
-const MOCK_USER = {
-  id: 'user_123',
-  name: 'Thabo N.',
-  role: 'worker', // Change to 'customer' to test homeowner view
-};
+interface UserProfile {
+  id: string;
+  full_name: string;
+  role: 'worker' | 'customer' | 'company';
+}
 
-// 📋 Mock job data — split by status
-const MOCK_JOBS = {
-  worker: {
-    current: [
-      {
-        id: 'job_w1',
-        title: 'Install ceiling fan',
-        customerName: 'David M.',
-        location: 'Johannesburg, Sandton',
-        budget: 'R 850',
-        startDate: '2025-10-24',
-        status: 'in-progress',
-      },
-      {
-        id: 'job_w2',
-        title: 'Fix kitchen light',
-        customerName: 'Sarah K.',
-        location: 'Pretoria, Centurion',
-        budget: 'R 450',
-        startDate: '2025-10-26',
-        status: 'assigned',
-      },
-    ],
-    history: [
-      {
-        id: 'job_w3',
-        title: 'Rewire living room',
-        customerName: 'Linda T.',
-        location: 'Cape Town, Observatory',
-        budget: 'R 1,200',
-        completedDate: '2025-10-20',
-        rating: 5,
-      },
-      {
-        id: 'job_w4',
-        title: 'Install outdoor lights',
-        customerName: 'Mike R.',
-        location: 'Durban, Umhlanga',
-        budget: 'R 950',
-        completedDate: '2025-10-15',
-        rating: 4,
-      },
-    ],
-  },
-  customer: {
-    current: [
-      {
-        id: 'job_c1',
-        title: 'Garden cleanup',
-        workerName: 'Lerato P.',
-        location: 'Durban, Umhlanga',
-        budget: 'R 600',
-        startDate: '2025-10-26',
-        status: 'in-progress',
-      },
-      {
-        id: 'job_c2',
-        title: 'Paint bedroom',
-        workerName: 'James B.',
-        location: 'Pretoria, Hatfield',
-        budget: 'R 1,800',
-        startDate: '2025-10-25',
-        status: 'assigned',
-      },
-    ],
-    history: [
-      {
-        id: 'job_c3',
-        title: 'Bathroom tiling',
-        workerName: 'John D.',
-        location: 'Cape Town, Claremont',
-        budget: 'R 3,200',
-        completedDate: '2025-10-22',
-        rating: 5,
-      },
-      {
-        id: 'job_c4',
-        title: 'Fix leaking tap',
-        workerName: 'Sipho M.',
-        location: 'Johannesburg, Rosebank',
-        budget: 'R 350',
-        completedDate: '2025-10-10',
-        rating: 4,
-      },
-    ],
-  },
-};
+interface Job {
+  id: string;
+  title: string;
+  location: string;
+  min_budget?: number;
+  max_budget?: number;
+  created_at: string;
+  status: 'open' | 'assigned' | 'in-progress' | 'completed' | 'cancelled';
+  customer_id: string;
+  worker_id?: string;
+  profiles_customer?: { full_name: string }[]; // Changed to array
+  profiles_worker?: { full_name: string }[]; // Changed to array
+  reviews?: { rating: number }[];
+}
 
 export default function MyJobsPage() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [user, setUser] = useState<typeof MOCK_USER | null>(null);
-  const [currentJobs, setCurrentJobs] = useState<any[]>([]);
-  const [jobHistory, setJobHistory] = useState<any[]>([]);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [currentJobs, setCurrentJobs] = useState<Job[]>([]);
+  const [jobHistory, setJobHistory] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const supabase = createClient();
 
   useEffect(() => {
-    setUser(MOCK_USER);
-    const data = MOCK_USER.role === 'worker' ? MOCK_JOBS.worker : MOCK_JOBS.customer;
-    setCurrentJobs(data.current);
-    setJobHistory(data.history);
-  }, []);
+    const fetchUserDataAndJobs = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !authUser) {
+          router.push('/auth/login');
+          return;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, full_name, role')
+          .eq('id', authUser.id)
+          .single();
+
+        if (profileError) {
+          throw profileError;
+        }
+
+        setUser(profile as UserProfile);
+
+        let currentJobsData: Job[] = [];
+        let historyJobsData: Job[] = [];
+
+        if (profile.role === 'worker') {
+          // Fetch worker's current jobs
+          const { data: workerCurrentJobs, error: workerCurrentError } = await supabase
+            .from('jobs')
+            .select(`
+              *,
+              profiles_customer:customer_id (full_name)
+            `)
+            .eq('worker_id', profile.id)
+            .in('status', ['assigned', 'in-progress'])
+            .order('created_at', { ascending: false });
+
+          if (workerCurrentError) throw workerCurrentError;
+          currentJobsData = workerCurrentJobs as Job[];
+
+          // Fetch worker's job history
+          const { data: workerHistoryJobs, error: workerHistoryError } = await supabase
+            .from('jobs')
+            .select(`
+              *,
+              profiles_customer:customer_id (full_name),
+              reviews (rating)
+            `)
+            .eq('worker_id', profile.id)
+            .eq('status', 'completed')
+            .order('created_at', { ascending: false });
+
+          if (workerHistoryError) throw workerHistoryError;
+          historyJobsData = workerHistoryJobs as Job[];
+
+        } else if (profile.role === 'customer') {
+          // Fetch customer's current jobs
+          const { data: customerCurrentJobs, error: customerCurrentError } = await supabase
+            .from('jobs')
+            .select(`
+              *,
+              profiles_worker:worker_id (full_name)
+            `)
+            .eq('customer_id', profile.id)
+            .in('status', ['assigned', 'in-progress'])
+            .order('created_at', { ascending: false });
+
+          if (customerCurrentError) throw customerCurrentError;
+          currentJobsData = customerCurrentJobs as Job[];
+
+          // Fetch customer's job history
+          const { data: customerHistoryJobs, error: customerHistoryError } = await supabase
+            .from('jobs')
+            .select(`
+              *,
+              profiles_worker:worker_id (full_name),
+              reviews (rating)
+            `)
+            .eq('customer_id', profile.id)
+            .eq('status', 'completed')
+            .order('created_at', { ascending: false });
+
+          if (customerHistoryError) throw customerHistoryError;
+          historyJobsData = customerHistoryJobs as Job[];
+        }
+
+        setCurrentJobs(currentJobsData);
+        setJobHistory(historyJobsData);
+
+      } catch (err: any) {
+        console.error('Error fetching data:', err);
+        setError(err.message || 'Failed to load jobs.');
+        router.push('/auth/login');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserDataAndJobs();
+  }, [router, supabase]);
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
@@ -122,8 +149,8 @@ export default function MyJobsPage() {
     router.push(path as any);
   };
 
-  const handleLogout = () => {
-    setUser(null);
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     router.push('/auth/login');
   };
 
@@ -131,10 +158,28 @@ export default function MyJobsPage() {
     router.push('/dashboard');
   };
 
+  if (loading) {
+    return <Loader />;
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <p className="text-red-600 dark:text-red-400">Error: {error}</p>
+        <button onClick={() => router.push('/dashboard')} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+          Go to Dashboard
+        </button>
+      </div>
+    );
+  }
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+        <p className="text-gray-600 dark:text-gray-300">No user data found. Please log in.</p>
+        <button onClick={() => router.push('/auth/login')} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+          Go to Login
+        </button>
       </div>
     );
   }
@@ -288,7 +333,7 @@ function JobCard({
   isWorker,
   onViewDetails,
 }: {
-  job: any;
+  job: Job;
   type: 'current' | 'history';
   isWorker: boolean;
   onViewDetails: () => void;
@@ -299,10 +344,33 @@ function JobCard({
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
       case 'assigned':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
+      case 'completed':
+        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
     }
   };
+
+  const otherPartyName = isWorker
+    ? job.profiles_customer?.[0]?.full_name
+    : job.profiles_worker?.[0]?.full_name;
+
+  const displayBudget = (job: Job) => {
+    if (job.min_budget && job.max_budget) {
+      return `R ${job.min_budget} - ${job.max_budget}`;
+    }
+    if (job.min_budget) {
+      return `R ${job.min_budget}`;
+    }
+    if (job.max_budget) {
+      return `Up to R ${job.max_budget}`;
+    }
+    return 'N/A';
+  };
+
+  const averageRating = job.reviews && job.reviews.length > 0
+    ? (job.reviews.reduce((sum, review) => sum + review.rating, 0) / job.reviews.length).toFixed(1)
+    : '0.0';
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700 transition hover:shadow-md">
@@ -313,19 +381,21 @@ function JobCard({
             {job.status === 'in-progress' ? 'In Progress' : 'Assigned'}
           </span>
         )}
-        {type === 'history' && job.rating && (
+        {type === 'history' && job.status === 'completed' && (
           <div className="flex items-center gap-1">
             <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-            <span className="text-sm font-medium">{job.rating}.0</span>
+            <span className="text-sm font-medium">{averageRating}</span>
           </div>
         )}
       </div>
 
       <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-        <div className="flex items-center gap-2">
-          {isWorker ? <User className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />}
-          <span>{isWorker ? job.customerName : job.workerName}</span>
-        </div>
+        {otherPartyName && (
+          <div className="flex items-center gap-2">
+            {isWorker ? <User className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />}
+            <span>{otherPartyName}</span>
+          </div>
+        )}
         <div className="flex items-center gap-2 mt-1">
           <MapPin className="w-4 h-4" />
           <span>{job.location}</span>
@@ -333,7 +403,7 @@ function JobCard({
       </div>
 
       <div className="mt-4 flex justify-between items-center">
-        <span className="font-bold text-gray-800 dark:text-white">{job.budget}</span>
+        <span className="font-bold text-gray-800 dark:text-white">{displayBudget(job)}</span>
         <button
           onClick={onViewDetails}
           className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium"

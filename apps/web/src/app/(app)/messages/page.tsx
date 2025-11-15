@@ -5,91 +5,138 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
-import { MessageSquare, MapPin, Briefcase, Home } from 'lucide-react';
+import { MessageSquare, MapPin, Briefcase, Home, ArrowLeft } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import Loader from '@/components/loader'; // Assuming a Loader component exists
 
-// 🔒 Mock current user — toggle between 'worker' and 'customer' to test
-const MOCK_CURRENT_USER = {
-  id: 'user_456', // ← Changed to customer ID for testing
-  name: 'Sarah K.',
-  role: 'worker', // ← Try 'worker' or 'customer'
-  avatar: 'https://ui-avatars.com/api/?name=Sarah+K&background=10B981&color=fff',
-};
+interface UserProfile {
+  id: string;
+  full_name: string;
+  role: 'worker' | 'customer' | 'company';
+  avatar_url: string;
+}
 
-// 📋 Generate mock conversations dynamically based on current user
-function generateMockConversations(currentUser: typeof MOCK_CURRENT_USER) {
-  if (currentUser.role === 'customer') {
-    // Worker sees conversations with customers
-    return [
-      {
-        id: 'conv_001',
-        participants: [
-          currentUser,
-          { id: 'user_456', name: 'Sarah K.', role: 'customer', avatar: 'https://ui-avatars.com/api/?name=Sarah+K&background=10B981&color=fff' },
-        ],
-        job: { title: 'Install ceiling fan', location: 'Johannesburg, Sandton' },
-        lastMessage: 'Perfect! I’ll bring my tools and be there by 9:15 AM.',
-        timestamp: '2025-10-25T10:12:00',
-        unread: false,
-      },
-      {
-        id: 'conv_002',
-        participants: [
-          currentUser,
-          { id: 'user_789', name: 'David M.', role: 'customer', avatar: 'https://ui-avatars.com/api/?name=David+M&background=8B5CF6&color=fff' },
-        ],
-        job: { title: 'Fix kitchen light', location: 'Pretoria, Centurion' },
-        lastMessage: 'Can you come tomorrow at 2 PM?',
-        timestamp: '2025-10-26T09:30:00',
-        unread: true,
-      },
-    ];
-  } else {
-    // Customer sees conversations with workers
-    return [
-      {
-        id: 'conv_001',
-        participants: [
-          currentUser,
-          { id: 'user_123', name: 'Thabo N.', role: 'worker', avatar: 'https://ui-avatars.com/api/?name=Thabo+N&background=4F46E5&color=fff' },
-        ],
-        job: { title: 'Install ceiling fan', location: 'Johannesburg, Sandton' },
-        lastMessage: 'Hi Sarah! Yes, I’m available on Saturday morning.',
-        timestamp: '2025-10-25T10:05:00',
-        unread: false,
-      },
-      {
-        id: 'conv_003',
-        participants: [
-          currentUser,
-          { id: 'user_101', name: 'Lerato P.', role: 'worker', avatar: 'https://ui-avatars.com/api/?name=Lerato+P&background=F59E0B&color=fff' },
-        ],
-        job: { title: 'Garden cleanup', location: 'Durban, Umhlanga' },
-        lastMessage: 'I can start tomorrow at 8 AM if that works.',
-        timestamp: '2025-10-26T08:15:00',
-        unread: true,
-      },
-    ];
-  }
+interface Conversation {
+  id: string;
+  created_at: string;
+  job_id?: string;
+  customer_id: string;
+  worker_id: string;
+  profiles_customer: {
+    id: string;
+    full_name: string;
+    avatar_url: string;
+  } | null; // Can be null if not found
+  profiles_worker: {
+    id: string;
+    full_name: string;
+    avatar_url: string;
+  } | null; // Can be null if not found
+  jobs?: {
+    title: string;
+    location: string;
+  } | null; // Can be null if no job associated
+  last_message_text?: string; // To store the last message text
+  unread_by_user?: boolean; // To indicate if there are unread messages for the current user
 }
 
 export default function MessagesPage() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [user, setUser] = useState<typeof MOCK_CURRENT_USER | null>(null);
-  const [conversations, setConversations] = useState<any[]>([]);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const supabase = createClient();
 
   useEffect(() => {
-    setUser(MOCK_CURRENT_USER);
-    setConversations(generateMockConversations(MOCK_CURRENT_USER));
-  }, []);
+    const fetchUserDataAndConversations = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !authUser) {
+          router.push('/auth/login');
+          return;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, full_name, role, avatar_url')
+          .eq('id', authUser.id)
+          .single();
+
+        if (profileError) {
+          throw profileError;
+        }
+
+        setUser(profile as UserProfile);
+
+        // Fetch conversations where the current user is either customer or worker
+        const { data: fetchedConversations, error: convError } = await supabase
+          .from('conversations')
+          .select(`
+            id,
+            created_at,
+            job_id,
+            customer_id,
+            worker_id,
+            profiles_customer:customer_id (id, full_name, avatar_url),
+            profiles_worker:worker_id (id, full_name, avatar_url),
+            jobs (title, location)
+          `)
+          .or(`customer_id.eq.${profile.id},worker_id.eq.${profile.id}`)
+          .order('created_at', { ascending: false });
+
+        if (convError) throw convError;
+
+        // For each conversation, fetch the last message and check for unread status
+        const conversationsWithLastMessage = await Promise.all(
+          fetchedConversations.map(async (conv: any) => { // Use 'any' temporarily for mapping
+            const { data: lastMessage, error: msgError } = await supabase
+              .from('messages')
+              .select('text, created_at')
+              .eq('conversation_id', conv.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single();
+
+            if (msgError && msgError.code !== 'PGRST116') { // PGRST116 means no rows found
+              console.error('Error fetching last message:', msgError);
+            }
+
+            // Implement unread logic if needed (requires a 'read' status on messages or similar)
+            // For now, we'll just add the last message text
+            return {
+              ...conv,
+              last_message_text: lastMessage?.text || 'No messages yet.',
+              // unread_by_user: ... (logic to determine unread status)
+            };
+          })
+        );
+
+        setConversations(conversationsWithLastMessage);
+      } catch (err: any) {
+        console.error('Error fetching data:', err);
+        setError(err.message || 'Failed to load messages.');
+        router.push('/auth/login');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserDataAndConversations();
+  }, [router, supabase]);
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
     setMenuOpen(false);
-     router.push(path as any);
+    router.push(path as any);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     router.push('/auth/login');
   };
 
@@ -97,10 +144,28 @@ export default function MessagesPage() {
     router.push('/dashboard');
   };
 
+  if (loading) {
+    return <Loader />;
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <p className="text-red-600 dark:text-red-400">Error: {error}</p>
+        <button onClick={() => router.push('/dashboard')} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+          Go to Dashboard
+        </button>
+      </div>
+    );
+  }
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+        <p className="text-gray-600 dark:text-gray-300">No user data found. Please log in.</p>
+        <button onClick={() => router.push('/auth/login')} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+          Go to Login
+        </button>
       </div>
     );
   }
@@ -175,30 +240,39 @@ export default function MessagesPage() {
         ) : (
           <div className="space-y-4">
             {conversations.map((conv) => {
-              // ✅ Always pick the OTHER user (not current user)
-              const otherUser = conv.participants.find((p: any) => p.id !== user.id);
+              const otherUser =
+                user.id === conv.customer_id ? conv.profiles_worker : conv.profiles_customer;
+              const jobTitle = conv.jobs?.title || 'General Chat';
+              const jobLocation = conv.jobs?.location || '';
+
+              if (!otherUser) return null; // Handle case where otherUser might be null
+
               return (
                 <Link key={conv.id} href={`/messages/${conv.id}`} className="block bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition">
                   <div className="flex gap-3">
                     <div className="relative">
-                      <img src={otherUser.avatar} alt={otherUser.name} className="w-12 h-12 rounded-full" />
-                      {conv.unread && <span className="absolute top-0 right-0 w-3 h-3 bg-blue-600 rounded-full border-2 border-white dark:border-gray-800"></span>}
+                      <img src={otherUser.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherUser.full_name || 'User')}&background=4F46E5&color=fff`} alt={otherUser.full_name} className="w-12 h-12 rounded-full" />
+                      {conv.unread_by_user && <span className="absolute top-0 right-0 w-3 h-3 bg-blue-600 rounded-full border-2 border-white dark:border-gray-800"></span>}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start">
-                        <h2 className="font-bold text-gray-800 dark:text-white truncate">{otherUser.name}</h2>
+                        <h2 className="font-bold text-gray-800 dark:text-white truncate">{otherUser.full_name}</h2>
                         <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                          {new Date(conv.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                          {new Date(conv.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                         </span>
                       </div>
                       <div className="flex items-center gap-1 mt-1 text-sm text-gray-600 dark:text-gray-400">
-                        {isWorker ? <Home className="w-3 h-3" /> : <Briefcase className="w-3 h-3" />}
-                        <span>{conv.job.title}</span>
-                        <span>•</span>
-                        <MapPin className="w-3 h-3" />
-                        <span>{conv.job.location}</span>
+                        {conv.job_id ? <Briefcase className="w-3 h-3" /> : <MessageSquare className="w-3 h-3" />}
+                        <span>{jobTitle}</span>
+                        {jobLocation && (
+                          <>
+                            <span>•</span>
+                            <MapPin className="w-3 h-3" />
+                            <span>{jobLocation}</span>
+                          </>
+                        )}
                       </div>
-                      <p className="mt-2 text-gray-600 dark:text-gray-400 line-clamp-1">{conv.lastMessage}</p>
+                      <p className="mt-2 text-gray-600 dark:text-gray-400 line-clamp-1">{conv.last_message_text}</p>
                     </div>
                   </div>
                 </Link>

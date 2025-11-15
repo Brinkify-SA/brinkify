@@ -4,6 +4,26 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
 import { User, Mail, MapPin, Camera, Briefcase, Home, Building, Tag, CreditCard } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import Loader from '@/components/loader'; // Assuming a Loader component exists
+
+interface OnboardingFormData {
+  id: string;
+  full_name: string; // Changed from name to full_name
+  email: string;
+  role: 'worker' | 'customer' | 'company';
+  location: string;
+  avatar_url: string;
+  skills?: string[];
+  bio?: string;
+  hourly_rate?: string;
+  portfolio?: string[]; // Array of public URLs
+  bank_name?: string;
+  account_number?: string;
+  branch_code?: string;
+  id_number?: string;
+  company_name?: string;
+}
 
 export default function OnboardingComponent() {
   const router = useRouter();
@@ -11,36 +31,66 @@ export default function OnboardingComponent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [role, setRole] = useState<'worker' | 'customer' | 'company' | null>(null);
-  const [formData, setFormData] = useState({
-    fullName: '',
+  const [formData, setFormData] = useState<OnboardingFormData>({
+    id: '',
+    full_name: '', // Changed from name to full_name
     email: '',
+    role: 'worker', // Default, will be updated
     location: '',
-    avatar: '',
-    // Worker
-    skills: [] as string[],
+    avatar_url: '',
+    skills: [],
     bio: '',
-    portfolio: [] as string[],
-    bankName: '',
-    accountNumber: '',
-    branchCode: '',
-    idNumber: '',
-    // Customer/Company
-    companyName: '',
+    hourly_rate: '',
+    portfolio: [],
+    bank_name: '',
+    account_number: '',
+    branch_code: '',
+    id_number: '',
+    company_name: '',
   });
   const [newSkill, setNewSkill] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Set to true initially for auth check
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const supabase = createClient();
 
-  // Get role from URL
   useEffect(() => {
-    const roleParam = searchParams.get('role');
-    if (['worker', 'customer', 'company'].includes(roleParam || '')) {
-      setRole(roleParam as any);
-    } else {
-      router.push('/auth/onboarding?role=company');
-    }
-  }, [searchParams, router]);
+    const initializeOnboarding = async () => {
+      setLoading(true);
+      setMessage(null);
+      try {
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !authUser) {
+          router.push('/auth/login');
+          return;
+        }
+
+        const roleParam = searchParams.get('role');
+        const userRole = ['worker', 'customer', 'company'].includes(roleParam || '')
+          ? (roleParam as 'worker' | 'customer' | 'company')
+          : 'company'; // Default to company if role is not specified or invalid
+
+    setRole(userRole);
+    setFormData((prev: OnboardingFormData) => ({
+      ...prev,
+      id: authUser.id,
+      email: authUser.email || '',
+      full_name: authUser.user_metadata?.full_name || '', // Pre-fill full_name if available from auth
+      avatar_url: authUser.user_metadata?.avatar_url || '', // Pre-fill avatar if available
+      role: userRole,
+    }));
+      } catch (err: any) {
+        console.error('Error initializing onboarding:', err);
+        setMessage({ type: 'error', text: err.message || 'Failed to initialize onboarding.' });
+        router.push('/auth/login');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeOnboarding();
+  }, [searchParams, router, supabase]);
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
@@ -48,56 +98,90 @@ export default function OnboardingComponent() {
     router.push(path as any);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length + formData.portfolio.length > 6) {
-      alert('You can upload up to 6 portfolio images.');
+    if (files.length + (formData.portfolio?.length || 0) > 6) {
+      setMessage({ type: 'error', text: 'You can upload up to 6 portfolio images.' });
       return;
     }
 
-    const newPreviews: string[] = [];
-    const newImages: string[] = [];
+    setLoading(true);
+    try {
+      const uploadedUrls: string[] = [];
+      for (const file of files) {
+        if (file.size > 5 * 1024 * 1024) {
+          setMessage({ type: 'error', text: `Image ${file.name} must be less than 5MB.` });
+          setLoading(false);
+          return;
+        }
 
-    files.forEach((file) => {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('Image must be less than 5MB.');
-        return;
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${formData.id}-${Math.random()}.${fileExt}`;
+        const filePath = `portfolio/${fileName}`; // Assuming a 'portfolio' bucket
+
+        const { error: uploadError } = await supabase.storage
+          .from('portfolio')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage.from('portfolio').getPublicUrl(filePath);
+        uploadedUrls.push(publicUrl);
       }
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        newPreviews.push(result);
-        newImages.push(result);
-        if (newPreviews.length === files.length) {
-          setPreviewImages((prev) => [...prev, ...newPreviews]);
-          setFormData((prev) => ({
-            ...prev,
-            portfolio: [...prev.portfolio, ...newImages],
-          }));
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+      setPreviewImages((prev) => [...prev, ...uploadedUrls]);
+      setFormData((prev) => ({
+        ...prev,
+        portfolio: [...(prev.portfolio || []), ...uploadedUrls],
+      }));
+      setMessage({ type: 'success', text: 'Images uploaded successfully!' });
+    } catch (error: any) {
+      console.error('Error uploading images:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to upload images.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const removeImage = (index: number) => {
-    setPreviewImages((prev) => prev.filter((_, i) => i !== index));
-    setFormData((prev) => ({
-      ...prev,
-      portfolio: prev.portfolio.filter((_, i) => i !== index),
-    }));
+  const removeImage = async (index: number) => {
+    const imageUrlToRemove = previewImages[index];
+    if (!imageUrlToRemove) return;
+
+    setLoading(true);
+    try {
+      // Extract file path from public URL
+      const urlParts = imageUrlToRemove.split('/');
+      const filePath = `portfolio/${urlParts[urlParts.length - 1]}`; // Assuming 'portfolio' bucket
+
+      const { error: deleteError } = await supabase.storage
+        .from('portfolio')
+        .remove([filePath]);
+
+      if (deleteError) throw deleteError;
+
+      setPreviewImages((prev: string[]) => prev.filter((_, i) => i !== index));
+      setFormData((prev: OnboardingFormData) => ({
+        ...prev,
+        portfolio: (prev.portfolio || []).filter((_, i) => i !== index),
+      }));
+      setMessage({ type: 'success', text: 'Image removed successfully!' });
+    } catch (error: any) {
+      console.error('Error removing image:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to remove image.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddSkill = () => {
-    if (newSkill.trim() && !formData.skills.includes(newSkill.trim())) {
-      setFormData({ ...formData, skills: [...formData.skills, newSkill.trim()] });
+    if (newSkill.trim() && !formData.skills?.includes(newSkill.trim())) {
+      setFormData((prev: OnboardingFormData) => ({ ...prev, skills: [...(prev.skills || []), newSkill.trim()] }));
       setNewSkill('');
     }
   };
 
   const handleRemoveSkill = (skill: string) => {
-    setFormData({ ...formData, skills: formData.skills.filter((s) => s !== skill) });
+    setFormData((prev: OnboardingFormData) => ({ ...prev, skills: (prev.skills || []).filter((s) => s !== skill) }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -105,47 +189,83 @@ export default function OnboardingComponent() {
     setLoading(true);
     setMessage(null);
 
+    if (!formData.id) {
+      setMessage({ type: 'error', text: 'User ID is missing. Please log in again.' });
+      setLoading(false);
+      return;
+    }
+
     // Validation
-    if (!formData.fullName.trim() || !formData.location.trim()) {
+    if (!formData.full_name.trim() || !formData.location.trim()) {
       setMessage({ type: 'error', text: 'Please fill in all required fields.' });
       setLoading(false);
       return;
     }
 
     if (role === 'worker') {
-      if (formData.portfolio.length < 3) {
+      if ((formData.portfolio?.length || 0) < 3) {
         setMessage({ type: 'error', text: 'Please upload at least 3 portfolio images.' });
         setLoading(false);
         return;
       }
-      if (!formData.bankName || !formData.accountNumber || !formData.idNumber) {
+      if (!formData.bank_name || !formData.account_number || !formData.id_number) {
         setMessage({ type: 'error', text: 'Banking and ID details are required for workers.' });
         setLoading(false);
         return;
       }
     }
 
-    try {
-      // ✅ In real app: call your Supabase API
-      // Example:
-      // await fetch('/api/onboarding', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ ...formData, role }),
-      // });
+    if (role === 'company' && !formData.company_name?.trim()) {
+      setMessage({ type: 'error', text: 'Company Name is required for companies.' });
+      setLoading(false);
+      return;
+    }
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: formData.full_name, // Changed from name to full_name
+          role: formData.role,
+          location: formData.location,
+          avatar_url: formData.avatar_url,
+          skills: formData.skills,
+          bio: formData.bio,
+          hourly_rate: formData.hourly_rate,
+          portfolio: formData.portfolio,
+          bank_name: formData.bank_name,
+          account_number: formData.account_number,
+          branch_code: formData.branch_code,
+          id_number: formData.id_number,
+          company_name: formData.company_name,
+        })
+        .eq('id', formData.id);
+
+      if (error) {
+        throw error;
+      }
+
+      setMessage({ type: 'success', text: 'Onboarding complete! Redirecting to dashboard...' });
       router.push('/dashboard');
-    } catch (err) {
-      setMessage({ type: 'error', text: 'Failed to complete onboarding. Please try again.' });
+    } catch (err: any) {
+      console.error('Error completing onboarding:', err);
+      setMessage({ type: 'error', text: err.message || 'Failed to complete onboarding. Please try again.' });
+    } finally {
       setLoading(false);
     }
   };
 
+  if (loading) {
+    return <Loader />;
+  }
+
   if (!role) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+        <p className="text-red-600 dark:text-red-400">Error: Role not determined. Please try again.</p>
+        <button onClick={() => router.push('/auth/login')} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+          Go to Login
+        </button>
       </div>
     );
   }
@@ -212,7 +332,7 @@ export default function OnboardingComponent() {
             <div className="flex justify-center mb-6">
               <div className="relative">
                 <img
-                  src={formData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.fullName || 'User')}&background=4F46E5&color=fff`}
+                  src={formData.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.full_name || 'User')}&background=4F46E5&color=fff`}
                   alt="Profile"
                   className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-md"
                 />
@@ -236,16 +356,16 @@ export default function OnboardingComponent() {
 
             {/* Full Name */}
             <div>
-              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Full Name <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
-                  id="fullName"
+                  id="full_name"
                   type="text"
-                  value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  value={formData.full_name}
+                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                   required
                   className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                   placeholder="e.g. Thabo Nkosi"
@@ -264,8 +384,8 @@ export default function OnboardingComponent() {
                   <input
                     id="companyName"
                     type="text"
-                    value={formData.companyName}
-                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                    value={formData.company_name || ''}
+                    onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                     required
                     className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                     placeholder="e.g. ABC Construction"
@@ -306,7 +426,7 @@ export default function OnboardingComponent() {
                   </label>
                   <textarea
                     id="bio"
-                    value={formData.bio}
+                    value={formData.bio || ''}
                     onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                     rows={3}
                     required
@@ -337,7 +457,7 @@ export default function OnboardingComponent() {
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {formData.skills.map((skill, i) => (
+                    {(formData.skills || []).map((skill, i) => (
                       <span
                         key={i}
                         className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 px-2.5 py-1 rounded-full text-sm"
@@ -379,7 +499,7 @@ export default function OnboardingComponent() {
                         </button>
                       </div>
                     ))}
-                    {previewImages.length < 6 && (
+                    {(formData.portfolio?.length || 0) < 6 && (
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
@@ -408,8 +528,8 @@ export default function OnboardingComponent() {
       <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
       <select
         id="bankName"
-        value={formData.bankName}
-        onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
+        value={formData.bank_name || ''}
+        onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
         required
         className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
       >
@@ -436,8 +556,8 @@ export default function OnboardingComponent() {
       <input
         id="accountNumber"
         type="text"
-        value={formData.accountNumber}
-        onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+        value={formData.account_number || ''}
+        onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
         required
         className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
         placeholder="123456789"
@@ -450,8 +570,8 @@ export default function OnboardingComponent() {
       <input
         id="branchCode"
         type="text"
-        value={formData.branchCode}
-        onChange={(e) => setFormData({ ...formData, branchCode: e.target.value })}
+        value={formData.branch_code || ''}
+        onChange={(e) => setFormData({ ...formData, branch_code: e.target.value })}
         required
         className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
         placeholder="e.g. 250655"
@@ -466,8 +586,8 @@ export default function OnboardingComponent() {
     <input
       id="idNumber"
       type="text"
-      value={formData.idNumber}
-      onChange={(e) => setFormData({ ...formData, idNumber: e.target.value })}
+      value={formData.id_number || ''}
+      onChange={(e) => setFormData({ ...formData, id_number: e.target.value })}
       required
       className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
       placeholder="7801015000080"

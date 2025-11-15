@@ -5,22 +5,36 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
-import { 
-  Home, 
-  Tag, 
-  MapPin, 
-  Calendar, 
-  DollarSign, 
-  Camera, 
-  X 
+import {
+  Home,
+  Tag,
+  MapPin,
+  Calendar,
+  DollarSign,
+  Camera,
+  X
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import Loader from '@/components/loader'; // Assuming a Loader component exists
 
-// 🔒 Mock user (homeowner)
-const MOCK_USER = {
-  name: 'Sarah K.',
-  role: 'customer',
-  location: 'Johannesburg, Sandton',
-};
+interface JobFormData {
+  title: string;
+  description: string;
+  category: string;
+  location: string;
+  min_budget?: number;
+  max_budget?: number;
+  preferred_date?: string;
+  images?: string[]; // Array of public URLs
+  customer_id: string;
+}
+
+interface UserProfile {
+  id: string;
+  full_name: string; // Changed from name to full_name
+  role: 'worker' | 'customer' | 'company';
+  location: string;
+}
 
 // 📋 Job categories (same as Explore page)
 const CATEGORIES = [
@@ -38,38 +52,64 @@ export default function PostJobPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [user, setUser] = useState<typeof MOCK_USER | null>(null);
-  const [formData, setFormData] = useState({
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [formData, setFormData] = useState<JobFormData>({
     title: '',
     description: '',
     category: '',
     location: '',
-    minBudget: '',
-    maxBudget: '',
-    preferredDate: '',
-    images: [] as string[],
+    images: [],
+    customer_id: '',
   });
   const [previewImages, setPreviewImages] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Set to true initially for data fetching
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const supabase = createClient();
 
-  // ✅ 1. Fetch user data (always runs)
   useEffect(() => {
-    setUser(MOCK_USER);
-    setFormData((prev) => ({
-      ...prev,
-      location: MOCK_USER.location,
-    }));
-  }, []);
+    const fetchUserProfile = async () => {
+      setLoading(true);
+      setMessage(null);
+      try {
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
 
-  // ✅ 2. Redirect if user is not a customer (runs after user is set)
-  useEffect(() => {
-    if (user && user.role !== 'customer') {
-      router.push('/dashboard');
-    }
-  }, [user, router]);
+        if (authError || !authUser) {
+          router.push('/auth/login');
+          return;
+        }
 
-  // ✅ All hooks are now at the top — no conditionals before this point
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, full_name, role, location') // Select full_name instead of name
+          .eq('id', authUser.id)
+          .single();
+
+        if (profileError) {
+          throw profileError;
+        }
+
+        if (profile.role !== 'customer') {
+          router.push('/dashboard');
+          return;
+        }
+
+        setUser(profile as UserProfile);
+        setFormData((prev) => ({
+          ...prev,
+          customer_id: profile.id,
+          location: profile.location || '',
+        }));
+      } catch (err: any) {
+        console.error('Error fetching user profile:', err);
+        setMessage({ type: 'error', text: err.message || 'Failed to load user profile.' });
+        router.push('/auth/login'); // Redirect to login on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, [router, supabase]);
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
@@ -77,7 +117,8 @@ export default function PostJobPage() {
     router.push(path as any);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     router.push('/auth/login' as any);
   };
 
@@ -85,51 +126,91 @@ export default function PostJobPage() {
     router.push('/dashboard' as any);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length + formData.images.length > 4) {
-      alert('You can upload up to 4 images.');
+    if (files.length + (formData.images?.length || 0) > 4) {
+      setMessage({ type: 'error', text: 'You can upload up to 4 images.' });
       return;
     }
 
-    const newPreviews: string[] = [];
-    const newImages: string[] = [];
+    setLoading(true);
+    try {
+      const uploadedUrls: string[] = [];
+      for (const file of files) {
+        if (file.size > 5 * 1024 * 1024) {
+          setMessage({ type: 'error', text: `Image ${file.name} must be less than 5MB.` });
+          setLoading(false);
+          return;
+        }
 
-    files.forEach((file) => {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('Image must be less than 5MB.');
-        return;
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${formData.customer_id}-${Math.random()}.${fileExt}`;
+        const filePath = `job_images/${fileName}`; // Assuming a 'job_images' bucket
+
+        const { error: uploadError } = await supabase.storage
+          .from('job_images')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage.from('job_images').getPublicUrl(filePath);
+        uploadedUrls.push(publicUrl);
       }
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        newPreviews.push(result);
-        newImages.push(result);
-        if (newPreviews.length === files.length) {
-          setPreviewImages((prev) => [...prev, ...newPreviews]);
-          setFormData((prev) => ({
-            ...prev,
-            images: [...prev.images, ...newImages],
-          }));
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+      setPreviewImages((prev) => [...prev, ...uploadedUrls]);
+      setFormData((prev) => ({
+        ...prev,
+        images: [...(prev.images || []), ...uploadedUrls],
+      }));
+      setMessage({ type: 'success', text: 'Images uploaded successfully!' });
+    } catch (error: any) {
+      console.error('Error uploading images:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to upload images.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const removeImage = (index: number) => {
-    setPreviewImages((prev) => prev.filter((_, i) => i !== index));
-    setFormData((prev) => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index),
-    }));
+  const removeImage = async (index: number) => {
+    const imageUrlToRemove = previewImages[index];
+    if (!imageUrlToRemove) return;
+
+    setLoading(true);
+    try {
+      // Extract file path from public URL
+      const urlParts = imageUrlToRemove.split('/');
+      const filePath = `job_images/${urlParts[urlParts.length - 1]}`; // Assuming 'job_images' bucket
+
+      const { error: deleteError } = await supabase.storage
+        .from('job_images')
+        .remove([filePath]);
+
+      if (deleteError) throw deleteError;
+
+      setPreviewImages((prev) => prev.filter((_, i) => i !== index));
+      setFormData((prev) => ({
+        ...prev,
+        images: (prev.images || []).filter((_, i) => i !== index),
+      }));
+      setMessage({ type: 'success', text: 'Image removed successfully!' });
+    } catch (error: any) {
+      console.error('Error removing image:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to remove image.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
+
+    if (!user || user.role !== 'customer') {
+      setMessage({ type: 'error', text: 'Only customers can post jobs.' });
+      setLoading(false);
+      return;
+    }
 
     if (!formData.title.trim() || !formData.description.trim() || !formData.category || !formData.location.trim()) {
       setMessage({ type: 'error', text: 'Please fill in all required fields.' });
@@ -138,27 +219,48 @@ export default function PostJobPage() {
     }
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const { data, error } = await supabase
+        .from('jobs')
+        .insert({
+          title: formData.title,
+          description: formData.description,
+          category: formData.category,
+          location: formData.location,
+          min_budget: formData.min_budget ? parseFloat(formData.min_budget.toString()) : null,
+          max_budget: formData.max_budget ? parseFloat(formData.max_budget.toString()) : null,
+          preferred_date: formData.preferred_date || null,
+          images: formData.images,
+          customer_id: formData.customer_id,
+          status: 'open', // Default status for new jobs, as per schema.sql
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      setMessage({ type: 'success', text: 'Job posted successfully! Redirecting to My Jobs...' });
       router.push('/my-jobs');
-    } catch (err) {
-      setMessage({ type: 'error', text: 'Failed to post job. Please try again.' });
+    } catch (err: any) {
+      console.error('Error posting job:', err);
+      setMessage({ type: 'error', text: err.message || 'Failed to post job. Please try again.' });
+    } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Now safe to conditionally render UI
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <p className="text-gray-600 dark:text-gray-300">Loading...</p>
-      </div>
-    );
+  if (loading) {
+    return <Loader />;
   }
 
-  // If user is not a customer, they were already redirected via useEffect
-  // But just in case, we can also guard the render
-  if (user.role !== 'customer') {
-    return null; // or show a message if redirect fails
+  if (!user || user.role !== 'customer') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <p className="text-red-600 dark:text-red-400">Access Denied: Only customers can post jobs.</p>
+        <button onClick={() => router.push('/auth/login')} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+          Go to Login
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -318,8 +420,8 @@ export default function PostJobPage() {
                   <input
                     id="minBudget"
                     type="number"
-                    value={formData.minBudget}
-                    onChange={(e) => setFormData({ ...formData, minBudget: e.target.value })}
+                    value={formData.min_budget || ''}
+                    onChange={(e) => setFormData({ ...formData, min_budget: parseFloat(e.target.value) || undefined })}
                     min="0"
                     placeholder="e.g. 500"
                     className="w-full pl-8 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
@@ -333,8 +435,8 @@ export default function PostJobPage() {
                   <input
                     id="maxBudget"
                     type="number"
-                    value={formData.maxBudget}
-                    onChange={(e) => setFormData({ ...formData, maxBudget: e.target.value })}
+                    value={formData.max_budget || ''}
+                    onChange={(e) => setFormData({ ...formData, max_budget: parseFloat(e.target.value) || undefined })}
                     min="0"
                     placeholder="e.g. 1500"
                     className="w-full pl-8 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
@@ -353,8 +455,8 @@ export default function PostJobPage() {
                 <input
                   id="preferredDate"
                   type="date"
-                  value={formData.preferredDate}
-                  onChange={(e) => setFormData({ ...formData, preferredDate: e.target.value })}
+                  value={formData.preferred_date || ''}
+                  onChange={(e) => setFormData({ ...formData, preferred_date: e.target.value })}
                   min={new Date().toISOString().split('T')[0]}
                   className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                 />
@@ -384,7 +486,7 @@ export default function PostJobPage() {
 </button>
                   </div>
                 ))}
-                {previewImages.length < 4 && (
+                {(formData.images?.length || 0) < 4 && (
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
