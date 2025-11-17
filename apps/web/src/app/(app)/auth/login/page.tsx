@@ -30,23 +30,57 @@ export default function LoginPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setLoading(true);
+  setError("");
 
-    try {
-      // ✅ Simulate login delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+  const { email, password } = formData;
 
-      // ✅ Redirect to DASHBOARD (not /explore)
-      router.push('/dashboard');
-    } catch (err) {
-      setError('Invalid email or password. Please try again.');
-    } finally {
-      setLoading(false);
+  try {
+    // Mock users
+    const users = [
+      {
+        email: "homeowner@test.com",
+        password: "Home1234!",
+        role: "customer",
+        redirect: "/dashboard",
+      },
+      {
+        email: "worker@test.com",
+        password: "Work1234!",
+        role: "worker",
+        redirect: "/dashboard",
+      },
+      {
+        email: "company@test.com",
+        password: "Comp1234!",
+        role: "company",
+        redirect: "/dashboard",
+      },
+    ];
+
+    // Match user
+    const foundUser = users.find(
+      (u) => u.email === email && u.password === password
+    );
+
+    if (!foundUser) {
+      setError("Invalid email or password.");
+      return;
     }
-  };
+
+    // Store the user email in localStorage
+    localStorage.setItem('userEmail', email);
+
+    // Redirect to dashboard
+    router.push('/dashboard');
+  } catch (err) {
+    setError("Something went wrong.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors">

@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
 import { MessageSquare, MapPin, Briefcase, Home, ArrowLeft } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import Loader from '@/components/loader'; // Assuming a Loader component exists
 
 interface UserProfile {
@@ -47,87 +46,102 @@ export default function MessagesPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+
 
   useEffect(() => {
     const fetchUserDataAndConversations = async () => {
       setLoading(true);
       setError(null);
       try {
-        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        // Mock user data
+        const mockUsers: { [key: string]: UserProfile } = {
+          '1': {
+            id: '1',
+            full_name: 'John Homeowner',
+            role: 'customer',
+            avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John',
+          },
+          '2': {
+            id: '2',
+            full_name: 'Sarah Worker',
+            role: 'worker',
+            avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
+          },
+        };
 
-        if (authError || !authUser) {
-          router.push('/auth/login');
-          return;
-        }
-
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, full_name, role, avatar_url')
-          .eq('id', authUser.id)
-          .single();
-
-        if (profileError) {
-          throw profileError;
-        }
+        // Get logged-in user
+        const storedEmail = localStorage.getItem('userEmail') || 'homeowner@test.com';
+        const userId = storedEmail.includes('worker') ? '2' : '1';
+        const profile = mockUsers[userId];
 
         setUser(profile as UserProfile);
 
-        // Fetch conversations where the current user is either customer or worker
-        const { data: fetchedConversations, error: convError } = await supabase
-          .from('conversations')
-          .select(`
-            id,
-            created_at,
-            job_id,
-            customer_id,
-            worker_id,
-            profiles_customer:customer_id (id, full_name, avatar_url),
-            profiles_worker:worker_id (id, full_name, avatar_url),
-            jobs (title, location)
-          `)
-          .or(`customer_id.eq.${profile.id},worker_id.eq.${profile.id}`)
-          .order('created_at', { ascending: false });
+        // Mock conversations
+        const mockConversations: Conversation[] = [
+          {
+            id: 'conv1',
+            created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+            job_id: '1',
+            customer_id: '1',
+            worker_id: '2',
+            profiles_customer: {
+              id: '1',
+              full_name: 'John Homeowner',
+              avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John',
+            },
+            profiles_worker: {
+              id: '2',
+              full_name: 'Sarah Worker',
+              avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
+            },
+            jobs: {
+              title: 'Kitchen Renovation',
+              location: 'Johannesburg, SA',
+            },
+            last_message_text: 'When can you start the kitchen renovation?',
+            unread_by_user: false,
+          },
+          {
+            id: 'conv2',
+            created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+            job_id: '2',
+            customer_id: '1',
+            worker_id: '3',
+            profiles_customer: {
+              id: '1',
+              full_name: 'John Homeowner',
+              avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John',
+            },
+            profiles_worker: {
+              id: '3',
+              full_name: 'Mike Electrician',
+              avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike',
+            },
+            jobs: {
+              title: 'Electrical Wiring Installation',
+              location: 'Johannesburg, SA',
+            },
+            last_message_text: 'Thanks for the job. I\\ll bring my tools tomorrow.',
+            unread_by_user: true,
+          },
+        ];
 
-        if (convError) throw convError;
-
-        // For each conversation, fetch the last message and check for unread status
-        const conversationsWithLastMessage = await Promise.all(
-          fetchedConversations.map(async (conv: any) => { // Use 'any' temporarily for mapping
-            const { data: lastMessage, error: msgError } = await supabase
-              .from('messages')
-              .select('text, created_at')
-              .eq('conversation_id', conv.id)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .single();
-
-            if (msgError && msgError.code !== 'PGRST116') { // PGRST116 means no rows found
-              console.error('Error fetching last message:', msgError);
-            }
-
-            // Implement unread logic if needed (requires a 'read' status on messages or similar)
-            // For now, we'll just add the last message text
-            return {
-              ...conv,
-              last_message_text: lastMessage?.text || 'No messages yet.',
-              // unread_by_user: ... (logic to determine unread status)
-            };
-          })
+        // Filter conversations based on user role
+        const userConversations = mockConversations.filter(
+          conv => conv.customer_id === userId || conv.worker_id === userId
         );
 
-        setConversations(conversationsWithLastMessage);
+        setConversations(userConversations);
       } catch (err: any) {
-        console.error('Error fetching data:', err);
+        console.error('Error loading conversations:', err);
         setError(err.message || 'Failed to load messages.');
-        router.push('/auth/login');
       } finally {
         setLoading(false);
       }
     };
 
     fetchUserDataAndConversations();
-  }, [router, supabase]);
+  }, []);
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
@@ -135,8 +149,8 @@ export default function MessagesPage() {
     router.push(path as any);
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
+  const handleLogout = () => {
+    localStorage.removeItem('userEmail');
     router.push('/auth/login');
   };
 

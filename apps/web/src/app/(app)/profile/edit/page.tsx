@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
 import { User, Mail, MapPin, Camera, Star, Briefcase, Home, Tag, X, Link as LinkIcon, Banknote } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import Loader from '@/components/loader'; // Assuming a Loader component exists
 
 interface UserProfile {
@@ -53,38 +52,124 @@ export default function EditProfilePage() {
   const [newCategory, setNewCategory] = useState('');
   const [loading, setLoading] = useState(true); // Set to true initially for data fetching
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const supabase = createClient();
+
+  // Mock workers data that matches profile page
+  const mockWorkers = {
+    '2': {
+      id: '2',
+      full_name: 'Sarah Worker',
+      email: 'worker@test.com',
+      role: 'worker' as const,
+      location: 'Cape Town, Southern Suburbs',
+      avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
+      bio: 'Experienced landscaper with 8+ years in the industry. Specialized in garden design and maintenance.',
+      skills: ['Landscaping', 'Garden Design', 'Pruning', 'Soil Preparation'],
+      hourly_rate: '180',
+      portfolio: [
+        { title: 'Rose Garden Project', url: 'https://images.unsplash.com/photo-1506780488710-c3f390da9f4e?auto=format&fit=crop&w=600' },
+        { title: 'Lawn Restoration', url: 'https://images.unsplash.com/photo-1506260459315-9c4c96d6d568?auto=format&fit=crop&w=600' },
+      ],
+      bank_name: 'FNB',
+      account_number: '7654321098765',
+      branch_code: '250155',
+      id_number: '9205201234567',
+      preferred_categories: [],
+    },
+    '3': {
+      id: '3',
+      full_name: 'Mike Electrician',
+      email: 'electrician@test.com',
+      role: 'worker' as const,
+      location: 'Johannesburg, Sandton',
+      avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike',
+      bio: 'Licensed electrician with 12+ years experience. Specializing in residential and commercial wiring.',
+      skills: ['Electrical Wiring', 'Circuit Installation', 'Safety Compliance', 'LED Installation'],
+      hourly_rate: '250',
+      portfolio: [
+        { title: 'Kitchen Rewiring', url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600' },
+      ],
+      bank_name: 'Standard Bank',
+      account_number: '1234567890123',
+      branch_code: '051001',
+      id_number: '8904151234567',
+      preferred_categories: [],
+    },
+    '4': {
+      id: '4',
+      full_name: 'Thabo N.',
+      email: 'thabo@test.com',
+      role: 'worker' as const,
+      location: 'Pretoria, Eastwood',
+      avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Thabo',
+      bio: 'Expert plumber with 10+ years experience. Handles everything from basic repairs to complex installations.',
+      skills: ['Plumbing', 'Pipe Installation', 'Leak Detection', 'Bathroom Fitting'],
+      hourly_rate: '200',
+      portfolio: [
+        { title: 'Bathroom Renovation', url: 'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?auto=format&fit=crop&w=600' },
+      ],
+      bank_name: 'Capitec',
+      account_number: '9876543210987',
+      branch_code: '430000',
+      id_number: '7805091234567',
+      preferred_categories: [],
+    },
+  };
+
+  const mockUsers = {
+    'homeowner@test.com': {
+      id: '1',
+      full_name: 'John Homeowner',
+      email: 'homeowner@test.com',
+      role: 'customer' as const,
+      location: 'Johannesburg, Northern Suburbs',
+      avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John',
+      preferred_categories: ['Electricians', 'Plumbers', 'Painters'],
+    },
+  };
 
   useEffect(() => {
     const fetchUserProfile = async () => {
       setLoading(true);
       setMessage(null);
       try {
-        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        // Get user email from localStorage
+        const userEmail = localStorage.getItem('userEmail');
 
-        if (authError || !authUser) {
+        if (!userEmail) {
           router.push('/auth/login');
           return;
         }
 
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authUser.id)
-          .single();
-
-        if (profileError) {
-          throw profileError;
+        // Check if user is a worker
+        let profile: UserProfile | null = null;
+        
+        // Try to find worker in mockWorkers
+        for (const workerId in mockWorkers) {
+          if (mockWorkers[workerId as keyof typeof mockWorkers].email === userEmail) {
+            profile = mockWorkers[workerId as keyof typeof mockWorkers];
+            break;
+          }
         }
 
-        setUser(profile as UserProfile);
+        // If not found, try mockUsers
+        if (!profile && mockUsers[userEmail as keyof typeof mockUsers]) {
+          profile = mockUsers[userEmail as keyof typeof mockUsers];
+        }
+
+        if (!profile) {
+          setMessage({ type: 'error', text: 'User profile not found.' });
+          router.push('/auth/login');
+          return;
+        }
+
+        setUser(profile);
         setFormData({
           id: profile.id,
-          full_name: profile.full_name || '', // Changed from name to full_name
-          email: authUser.email || '', // Email from auth user
-          role: profile.role || 'worker',
-          location: profile.location || '',
-          avatar_url: profile.avatar_url || '',
+          full_name: profile.full_name,
+          email: profile.email,
+          role: profile.role,
+          location: profile.location,
+          avatar_url: profile.avatar_url,
           skills: profile.skills || [],
           bio: profile.bio || '',
           hourly_rate: profile.hourly_rate || '',
@@ -92,7 +177,7 @@ export default function EditProfilePage() {
           bank_name: profile.bank_name || '',
           account_number: profile.account_number || '',
           branch_code: profile.branch_code || '',
-          id_number: profile.id_number || '', // Added id_number
+          id_number: profile.id_number || '',
           preferred_categories: profile.preferred_categories || [],
         });
       } catch (err: any) {
@@ -105,7 +190,7 @@ export default function EditProfilePage() {
     };
 
     fetchUserProfile();
-  }, [router, supabase]);
+  }, [router]);
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
@@ -114,7 +199,7 @@ export default function EditProfilePage() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    localStorage.removeItem('userEmail');
     router.push('/auth/login');
   };
 
@@ -127,24 +212,17 @@ export default function EditProfilePage() {
     if (file && user) {
       setLoading(true);
       try {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${user.id}-${Math.random()}.${fileExt}`;
-        const filePath = `avatars/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('avatars') // Assuming a 'avatars' bucket exists in Supabase Storage
-          .upload(filePath, file);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
-
-        setFormData((prev) => ({ ...prev, avatar_url: publicUrl }));
-        setMessage({ type: 'success', text: 'Avatar uploaded successfully!' });
+        // For mock data, create a local URL instead of uploading to Supabase
+        const fileReader = new FileReader();
+        fileReader.onload = () => {
+          setFormData((prev) => ({ ...prev, avatar_url: fileReader.result as string }));
+          setMessage({ type: 'success', text: 'Avatar updated successfully!' });
+          setLoading(false);
+        };
+        fileReader.readAsDataURL(file);
       } catch (error: any) {
-        console.error('Error uploading avatar:', error);
-        setMessage({ type: 'error', text: error.message || 'Failed to upload avatar.' });
-      } finally {
+        console.error('Error updating avatar:', error);
+        setMessage({ type: 'error', text: error.message || 'Failed to update avatar.' });
         setLoading(false);
       }
     }
@@ -196,30 +274,12 @@ export default function EditProfilePage() {
     }
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: formData.full_name, // Changed from name to full_name
-          location: formData.location,
-          avatar_url: formData.avatar_url,
-          skills: formData.skills,
-          bio: formData.bio,
-          hourly_rate: formData.hourly_rate,
-          portfolio: formData.portfolio,
-          bank_name: formData.bank_name,
-          account_number: formData.account_number,
-          branch_code: formData.branch_code,
-          id_number: formData.id_number, // Added id_number
-          preferred_categories: formData.preferred_categories,
-        })
-        .eq('id', user.id);
-
-      if (error) {
-        throw error;
-      }
-
+      // For mock data, just show success message
+      // In a real app, this would update the Supabase database
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
-      router.push('/dashboard');
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 1000);
     } catch (err: any) {
       console.error('Error updating profile:', err);
       setMessage({ type: 'error', text: err.message || 'Failed to update profile. Please try again.' });

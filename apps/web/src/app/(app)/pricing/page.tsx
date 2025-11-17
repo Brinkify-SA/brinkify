@@ -3,7 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { CheckCircle, Crown, Building } from 'lucide-react';
+import { CheckCircle, Crown, Building, Zap, Menu, Search } from 'lucide-react';
+import { ModeToggle } from '@/components/mode-toggle';
 import { useUser } from '@/lib/supabase/useUser';
 import { supabase } from '@/lib/supabase/api';
 import { toast } from 'sonner';
@@ -12,7 +13,7 @@ import SubscriptionModal from '@/components/SubscriptionModal';
 const WORKER_PLANS = [
   {
     name: 'Basic',
-    price: 'Free',
+    price: 'R19/mo',
     description: 'Perfect for getting started',
     features: [
       'Profile creation & listing in worker directory',
@@ -22,7 +23,7 @@ const WORKER_PLANS = [
       'Secure in-app chat with clients',
       'Access to Brinkify’s learning resources (tips, guides, safety advice)'
     ],
-    cta: 'Get Started Free',
+    cta: 'Get Started ',
     popular: false,
   },
   {
@@ -163,6 +164,33 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* TOP NAVBAR (consistent with Feed/Dashboard) */}
+      <header className="sticky top-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-lg border-b border-gray-200 dark:border-gray-700 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+          <Link href="/dashboard" className="flex items-center gap-2 group">
+            <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-2 rounded-lg group-hover:shadow-lg transition">
+            </div>
+            <span className="font-bold text-lg bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">Brinkify</span>
+          </Link>
+
+          <div className="hidden md:flex items-center gap-6">
+            <button onClick={() => window.location.href = '/'} className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition">
+              <Search className="w-4 h-4" />
+              <span>Home</span>
+            </button>
+            <button onClick={() => window.location.href = '/explore'} className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition">
+              <Search className="w-4 h-4" />
+              <span>Explore</span>
+            </button>
+            <ModeToggle />
+          </div>
+
+          <button className="md:hidden text-blue-600 dark:text-blue-400 focus:outline-none" aria-label="Open menu">
+            <Menu className="w-6 h-6" />
+          </button>
+        </div>
+      </header>
+
       <SubscriptionModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
@@ -172,41 +200,18 @@ export default function PricingPage() {
         userId={user?.id}
       />
       {/* Hero */}
-      <section className="py-16 text-center bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-        <h1 className="text-4xl md:text-5xl font-bold mb-4">Choose Your Plan</h1>
-        <p className="text-xl max-w-2xl mx-auto">
-          Unlock real opportunities with Brinkify SA. Start free, upgrade anytime.
-        </p>
-      </section>
-
-      {/* Tabs */}
-      <div className="flex justify-center mb-8">
-        <div className="inline-flex p-1 bg-gray-200 dark:bg-gray-700 rounded-lg">
-          <button
-            onClick={() => setActiveTab('workers')}
-            className={`px-6 py-2 rounded-md text-sm font-medium ${
-              activeTab === 'workers'
-                ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow'
-                : 'text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            <UserIcon className="w-4 h-4 inline mr-2" />
-            For Workers
-          </button>
-          <button
-            onClick={() => setActiveTab('companies')}
-            className={`px-6 py-2 rounded-md text-sm font-medium ${
-              activeTab === 'companies'
-                ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow'
-                : 'text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            <Building className="w-4 h-4 inline mr-2" />
-            For Companies
-          </button>
+      <section className="py-16 text-center bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+        <div className="max-w-4xl mx-auto px-4">
+          <h1 className="text-4xl md:text-5xl font-extrabold mb-4">Choose a plan that fits your needs</h1>
+          <p className="text-lg opacity-95 mb-6">
+            Grow your business or profile on Brinkify — flexible plans for workers and companies. Upgrade anytime.
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            <button onClick={() => setActiveTab('workers')} className={`px-4 py-2 rounded-lg font-semibold ${activeTab === 'workers' ? 'bg-white text-blue-600' : 'bg-white/20 text-white'}`}> <UserIcon className="w-4 h-4 inline mr-2" />Worker Plans</button>
+            <button onClick={() => setActiveTab('companies')} className={`px-4 py-2 rounded-lg font-semibold ${activeTab === 'companies' ? 'bg-white text-blue-600' : 'bg-white/20 text-white'}`}><Building className="w-4 h-4 inline mr-2" />Company Plans</button>
+          </div>
         </div>
-      </div>
-
+      </section>
       {/* Plans Grid */}
       <section className="py-8 px-4">
         <div className="max-w-7xl mx-auto">
