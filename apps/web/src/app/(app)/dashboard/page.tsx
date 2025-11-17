@@ -137,7 +137,7 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <p className="text-gray-600 dark:text-gray-300">No user data found. Please log in.</p>
-        <button onClick={() => router.push('/auth/login')} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+        <button onClick={() => router.push('/')} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
           Go to Login
         </button>
       </div>

@@ -82,6 +82,36 @@ const handleSubmit = async (e: React.FormEvent) => {
   }
 };
 
+const handleGoogleLogin = async () => {
+  setLoading(true);
+  setError("");
+  try {
+    // Mock Google login - default to homeowner for demo
+    const googleEmail = "homeowner@test.com";
+    localStorage.setItem('userEmail', googleEmail);
+    router.push('/dashboard');
+  } catch (err) {
+    setError("Google login failed. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handleAppleLogin = async () => {
+  setLoading(true);
+  setError("");
+  try {
+    // Mock Apple login - default to worker for demo
+    const appleEmail = "worker@test.com";
+    localStorage.setItem('userEmail', appleEmail);
+    router.push('/dashboard');
+  } catch (err) {
+    setError("Apple login failed. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors">
       {/* --- Navbar --- */}
@@ -252,8 +282,9 @@ const handleSubmit = async (e: React.FormEvent) => {
           <div className="grid grid-cols-2 gap-3 mb-6">
             <button
               type="button"
-              className="flex items-center justify-center gap-2 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-              onClick={() => alert('Google login not implemented')}
+              disabled={loading}
+              className="flex items-center justify-center gap-2 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleGoogleLogin}
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -265,8 +296,9 @@ const handleSubmit = async (e: React.FormEvent) => {
             </button>
             <button
               type="button"
-              className="flex items-center justify-center gap-2 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-              onClick={() => alert('Apple login not implemented')}
+              disabled={loading}
+              className="flex items-center justify-center gap-2 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleAppleLogin}
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.5 10.5c-.35 1.4-1.6 2.5-3 2.5s-2.65-1.1-3-2.5c-.35-1.4.9-2.5 2.3-2.5s2.65 1.1 3 2.5zm-3-8c1.5 0 2.8.8 3.5 2-.7 1.2-2 2-3.5 2s-2.8-.8-3.5-2c.7-1.2 2-2 3.5-2z" />
