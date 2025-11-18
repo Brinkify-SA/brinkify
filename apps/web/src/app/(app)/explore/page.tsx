@@ -5,13 +5,17 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
-import { Heart, MessageCircle, MapPin, User } from 'lucide-react';
+import { 
+  Heart, MessageCircle, MapPin, User, Search, Filter, Share2, 
+  Star, Award, TrendingUp, Bookmark, Eye, Download, ChevronLeft, 
+  ChevronRight, Zap, Clock, DollarSign, CheckCircle 
+} from 'lucide-react';
 
 // 🔒 Mock feed posts (like Instagram for trades)
 const MOCK_FEED_POSTS = [
   {
     id: 'post_1',
-    worker: { id: 'w1', name: 'Thabo N.', avatar: 'https://ui-avatars.com/api/?name=Thabo+N&background=4F46E5&color=fff' },
+    worker: { id: '4', name: 'Thabo N.', avatar: 'https://ui-avatars.com/api/?name=Thabo+N&background=4F46E5&color=fff', rating: 4.9 },
     title: 'Kitchen Rewiring Complete',
     category: 'Electricians',
     location: 'Johannesburg, Sandton',
@@ -22,14 +26,19 @@ const MOCK_FEED_POSTS = [
     ],
     likes: 24,
     comments: 3,
+    views: 156,
+    saves: 8,
     createdAt: '2025-10-20',
+    completionTime: '3 days',
+    price: 'R 2,500',
+    verified: true,
   },
   {
     id: 'post_2',
-    worker: { id: 'w2', name: 'Lerato P.', avatar: 'https://ui-avatars.com/api/?name=Lerato+P&background=F59E0B&color=fff' },
+    worker: { id: '2', name: 'Sarah Worker', avatar: 'https://ui-avatars.com/api/?name=Sarah+Worker&background=F59E0B&color=fff', rating: 4.8 },
     title: 'Garden Makeover',
     category: 'Gardeners',
-    location: 'Durban, Umhlanga',
+    location: 'Cape Town, Southern Suburbs',
     description: 'Complete lawn restoration, hedge trimming, and new flower beds installed. Client loved the result!',
     images: [
       'https://images.unsplash.com/photo-1506780488710-c3f390da9f4e?auto=format&fit=crop&w=600',
@@ -37,28 +46,38 @@ const MOCK_FEED_POSTS = [
     ],
     likes: 42,
     comments: 7,
+    views: 289,
+    saves: 15,
     createdAt: '2025-10-22',
+    completionTime: '2 days',
+    price: 'R 1,800',
+    verified: true,
   },
   {
     id: 'post_3',
-    worker: { id: 'w3', name: 'James B.', avatar: 'https://ui-avatars.com/api/?name=James+B&background=8B5CF6&color=fff' },
+    worker: { id: '3', name: 'Mike Electrician', avatar: 'https://ui-avatars.com/api/?name=Mike+Electrician&background=8B5CF6&color=fff', rating: 4.6 },
     title: 'Bedroom Painting',
     category: 'Painters',
-    location: 'Pretoria, Hatfield',
+    location: 'Johannesburg, Sandton',
     description: 'Fresh coat of Dulux Satin in Classic White. Walls prepped, taped, and finished with clean lines.',
     images: [
       'https://images.unsplash.com/photo-1600210492486-724fe5384259?auto=format&fit=crop&w=600',
     ],
     likes: 18,
     comments: 2,
+    views: 94,
+    saves: 5,
     createdAt: '2025-10-24',
+    completionTime: '1 day',
+    price: 'R 950',
+    verified: true,
   },
   {
     id: 'post_4',
-    worker: { id: 'w4', name: 'Sipho M.', avatar: 'https://ui-avatars.com/api/?name=Sipho+M&background=10B981&color=fff' },
+    worker: { id: '4', name: 'Thabo N.', avatar: 'https://ui-avatars.com/api/?name=Thabo+N&background=10B981&color=fff', rating: 4.9 },
     title: 'Bathroom Tiling',
     category: 'Tilers',
-    location: 'Cape Town, Claremont',
+    location: 'Pretoria, Eastwood',
     description: 'Full wall and floor tiling with anti-slip porcelain tiles. Waterproofing applied before installation.',
     images: [
       'https://images.unsplash.com/photo-1600210492486-724fe5384259?auto=format&fit=crop&w=600',
@@ -66,18 +85,69 @@ const MOCK_FEED_POSTS = [
     ],
     likes: 31,
     comments: 5,
+    views: 201,
+    saves: 12,
     createdAt: '2025-10-25',
+    completionTime: '4 days',
+    price: 'R 3,200',
+    verified: true,
   },
 ];
 
 export default function ExplorePage() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [currentImageIndex, setCurrentImageIndex] = useState<{ [key: string]: number }>({});
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+  const [savedPosts, setSavedPosts] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<'recent' | 'trending' | 'top-rated'>('recent');
+
+  const categories = ['All', 'Electricians', 'Gardeners', 'Painters', 'Tilers', 'Plumbers'];
+
+  const filteredPosts = MOCK_FEED_POSTS.filter(post => {
+    const matchesCategory = selectedCategory === 'All' || post.category === selectedCategory;
+    const matchesSearch = post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          post.worker.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          post.description.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  }).sort((a, b) => {
+    if (sortBy === 'trending') return b.views - a.views;
+    if (sortBy === 'top-rated') return b.likes - a.likes;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
     setMenuOpen(false);
     router.push(path as any);
+  };
+
+  const toggleLike = (postId: string) => {
+    const newLiked = new Set(likedPosts);
+    newLiked.has(postId) ? newLiked.delete(postId) : newLiked.add(postId);
+    setLikedPosts(newLiked);
+  };
+
+  const toggleSave = (postId: string) => {
+    const newSaved = new Set(savedPosts);
+    newSaved.has(postId) ? newSaved.delete(postId) : newSaved.add(postId);
+    setSavedPosts(newSaved);
+  };
+
+  const nextImage = (postId: string, imageCount: number) => {
+    setCurrentImageIndex(prev => ({
+      ...prev,
+      [postId]: ((prev[postId] || 0) + 1) % imageCount
+    }));
+  };
+
+  const prevImage = (postId: string) => {
+    setCurrentImageIndex(prev => ({
+      ...prev,
+      [postId]: ((prev[postId] || 0) - 1 + (MOCK_FEED_POSTS.find(p => p.id === postId)?.images.length || 1)) % (MOCK_FEED_POSTS.find(p => p.id === postId)?.images.length || 1)
+    }));
   };
 
   const openPrivacy = () => window.open('https://brinkifysa.co.za/privacy', '_blank');
@@ -156,13 +226,19 @@ export default function ExplorePage() {
             >
               {/* Worker Header */}
               <div className="p-4 flex items-center gap-3 border-b border-gray-100 dark:border-gray-700">
-                <img
-                  src={post.worker.avatar}
-                  alt={post.worker.name}
-                  className="w-10 h-10 rounded-full"
-                />
+                <Link href={`/profile/${post.worker.id}`}>
+                  <img
+                    src={post.worker.avatar}
+                    alt={post.worker.name}
+                    className="w-10 h-10 rounded-full hover:opacity-80 cursor-pointer transition"
+                  />
+                </Link>
                 <div>
-                  <h3 className="font-bold text-gray-800 dark:text-white">{post.worker.name}</h3>
+                  <Link href={`/profile/${post.worker.id}`}>
+                    <h3 className="font-bold text-gray-800 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition">
+                      {post.worker.name}
+                    </h3>
+                  </Link>
                   <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                     <MapPin className="w-4 h-4" />
                     <span>{post.location}</span>

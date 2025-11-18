@@ -13,7 +13,6 @@ import {
   UserCheck,
   UserX,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import Loader from '@/components/loader'; // Assuming a Loader component exists
 
 interface UserProfile {
@@ -66,77 +65,135 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const supabase = createClient();
 
   useEffect(() => {
     const fetchUserDataAndJobs = async () => {
       setLoading(true);
       setError(null);
       try {
-        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        // Mock user data
+        const mockUsers: { [key: string]: UserProfile } = {
+          'worker@test.com': {
+            id: '2',
+            full_name: 'Sarah Worker',
+            role: 'worker',
+            location: 'Cape Town, SA',
+            plan_name: 'Professional',
+            job_leads_used: 15,
+            leads_limit: 50,
+          },
+          'homeowner@test.com': {
+            id: '1',
+            full_name: 'John Homeowner',
+            role: 'customer',
+            location: 'Johannesburg, SA',
+            plan_name: 'Premium',
+            job_leads_used: 0,
+            leads_limit: 0,
+          },
+        };
 
-        if (authError || !authUser) {
-          router.push('/auth/login');
-          return;
-        }
-
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, full_name, role, location, plan_name, job_leads_used, leads_limit')
-          .eq('id', authUser.id)
-          .single();
-
-        if (profileError) {
-          throw profileError;
-        }
+        // Get logged-in user email from localStorage
+        const storedEmail = localStorage.getItem('userEmail') || 'homeowner@test.com';
+        const profile = mockUsers[storedEmail] || mockUsers['homeowner@test.com'];
 
         setUser(profile as UserProfile);
 
+        // Mock jobs data
+        const mockJobs: Job[] = [
+          {
+            id: '1',
+            title: 'Kitchen Renovation',
+            description: 'Need help renovating kitchen - new cabinets, countertops, and flooring',
+            category: 'Home Renovation',
+            location: 'Cape Town, SA',
+            min_budget: 5000,
+            max_budget: 8000,
+            preferred_date: '2025-12-20',
+            images: [],
+            created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+            status: 'open',
+            customer_id: '1',
+            profiles: {
+              full_name: 'John Homeowner',
+              avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John',
+            },
+            applications: [
+              {
+                id: 'app1',
+                worker_id: '2',
+                status: 'pending',
+                profiles: {
+                  full_name: 'Sarah Worker',
+                  avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
+                },
+              },
+            ],
+            conversations: [],
+          },
+          {
+            id: '2',
+            title: 'Electrical Wiring Installation',
+            description: 'Install new electrical wiring in bedroom and bathroom',
+            category: 'Electrical',
+            location: 'Cape Town, SA',
+            min_budget: 2000,
+            max_budget: 3500,
+            preferred_date: '2025-12-15',
+            images: [],
+            created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+            status: 'open',
+            customer_id: '4',
+            profiles: {
+              full_name: 'Jane Smith',
+              avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jane',
+            },
+            applications: [],
+            conversations: [],
+          },
+          {
+            id: '3',
+            title: 'Plumbing Repair',
+            description: 'Fix leaking pipes and install new fixtures',
+            category: 'Plumbing',
+            location: 'Cape Town, SA',
+            min_budget: 1500,
+            max_budget: 2500,
+            preferred_date: '2025-12-10',
+            images: [],
+            created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+            status: 'open',
+            customer_id: '5',
+            profiles: {
+              full_name: 'Mike Johnson',
+              avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike',
+            },
+            applications: [],
+            conversations: [],
+          },
+        ];
+
+        // Filter jobs based on role
         let fetchedJobs: Job[] = [];
         if (profile.role === 'worker') {
-          // Fetch open jobs in the worker's city
-          const { data: workerJobs, error: workerJobsError } = await supabase
-            .from('jobs')
-            .select(`
-              *,
-              profiles (full_name, avatar_url),
-              applications (id, worker_id, status, profiles (full_name, avatar_url)),
-              conversations (id)
-            `)
-            .eq('status', 'open')
-            .ilike('location', `${profile.location.split(',')[0]?.trim()}%`); // Filter by city
-
-          if (workerJobsError) throw workerJobsError;
-          fetchedJobs = workerJobs as Job[];
+          // Worker sees open jobs
+          fetchedJobs = mockJobs.filter(job => job.status === 'open');
         } else if (profile.role === 'customer') {
-          // Fetch jobs posted by the customer
-          const { data: customerJobs, error: customerJobsError } = await supabase
-            .from('jobs')
-            .select(`
-              *,
-              profiles (full_name, avatar_url),
-              applications (id, worker_id, status, profiles (full_name, avatar_url)),
-              conversations (id)
-            `)
-            .eq('customer_id', profile.id)
-            .order('created_at', { ascending: false });
-
-          if (customerJobsError) throw customerJobsError;
-          fetchedJobs = customerJobs as Job[];
+          // Customer sees their own jobs
+          fetchedJobs = mockJobs.filter(job => job.customer_id === profile.id);
         }
 
         setJobs(fetchedJobs);
       } catch (err: any) {
-        console.error('Error fetching data:', err);
+        console.error('Error loading jobs:', err);
         setError(err.message || 'Failed to load jobs.');
-        router.push('/auth/login');
       } finally {
         setLoading(false);
       }
     };
 
     fetchUserDataAndJobs();
-  }, [router, supabase]);
+  }, []);
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
 
@@ -145,8 +202,8 @@ export default function JobsPage() {
     router.push(path as any);
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
+  const handleLogout = () => {
+    localStorage.removeItem('userEmail');
     router.push('/auth/login');
   };
 
@@ -158,23 +215,25 @@ export default function JobsPage() {
     if (!user) return;
     setLoading(true);
     try {
-      const { error: insertError } = await supabase
-        .from('applications')
-        .insert({ job_id: jobId, worker_id: user.id });
-
-      if (insertError) throw insertError;
-
-      // Increment job_leads_used for the worker
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ job_leads_used: user.job_leads_used + 1 })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
-
+      // Mock apply functionality
       setMessage({ type: 'success', text: 'Application submitted!' });
-      // Refresh jobs to reflect application status
-      router.refresh(); // Next.js 13 way to re-fetch data
+      // In real app, update jobs to show applied status
+      setJobs(jobs.map(job => 
+        job.id === jobId 
+          ? {
+              ...job,
+              applications: [...(job.applications || []), {
+                id: `app-${Date.now()}`,
+                worker_id: user.id,
+                status: 'pending',
+                profiles: {
+                  full_name: user.full_name,
+                  avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user.full_name,
+                },
+              }],
+            }
+          : job
+      ));
     } catch (err: any) {
       console.error('Error applying to job:', err);
       setMessage({ type: 'error', text: err.message || 'Failed to apply to job.' });
@@ -186,53 +245,22 @@ export default function JobsPage() {
   const handleApprove = async (jobId: string, workerId: string, applicationId: string) => {
     setLoading(true);
     try {
-      // Update application status to approved
-      const { error: updateAppError } = await supabase
-        .from('applications')
-        .update({ status: 'approved' })
-        .eq('id', applicationId);
-
-      if (updateAppError) throw updateAppError;
-
-      // Update job status to assigned and assign worker
-      const { error: updateJobError } = await supabase
-        .from('jobs')
-        .update({ status: 'assigned', worker_id: workerId })
-        .eq('id', jobId);
-
-      if (updateJobError) throw updateJobError;
-
-      // Deny other applications for this job
-      const { error: denyOthersError } = await supabase
-        .from('applications')
-        .update({ status: 'denied' })
-        .eq('job_id', jobId)
-        .neq('worker_id', workerId);
-
-      if (denyOthersError) throw denyOthersError;
-
-      // Create a conversation if one doesn't exist
-      const { data: existingConversation, error: convFetchError } = await supabase
-        .from('conversations')
-        .select('id')
-        .eq('job_id', jobId)
-        .eq('customer_id', user?.id)
-        .eq('worker_id', workerId)
-        .single();
-
-      if (convFetchError && convFetchError.code !== 'PGRST116') { // PGRST116 means no rows found
-        throw convFetchError;
-      }
-
-      if (!existingConversation) {
-        const { error: createConvError } = await supabase
-          .from('conversations')
-          .insert({ job_id: jobId, customer_id: user?.id, worker_id: workerId });
-        if (createConvError) throw createConvError;
-      }
-
+      // Mock approval functionality
+      setJobs(jobs.map(job =>
+        job.id === jobId
+          ? {
+              ...job,
+              status: 'assigned' as const,
+              worker_id: workerId,
+              applications: job.applications.map(app =>
+                app.id === applicationId
+                  ? { ...app, status: 'approved' as const }
+                  : { ...app, status: 'denied' as const }
+              ),
+            }
+          : job
+      ));
       setMessage({ type: 'success', text: 'Worker approved and job assigned!' });
-      router.refresh();
     } catch (err: any) {
       console.error('Error approving worker:', err);
       setMessage({ type: 'error', text: err.message || 'Failed to approve worker.' });
@@ -244,15 +272,16 @@ export default function JobsPage() {
   const handleDeny = async (applicationId: string) => {
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('applications')
-        .update({ status: 'denied' })
-        .eq('id', applicationId);
-
-      if (error) throw error;
-
+      // Mock deny functionality
+      setJobs(jobs.map(job => ({
+        ...job,
+        applications: job.applications.map(app =>
+          app.id === applicationId
+            ? { ...app, status: 'denied' as const }
+            : app
+        ),
+      })));
       setMessage({ type: 'success', text: 'Application denied.' });
-      router.refresh();
     } catch (err: any) {
       console.error('Error denying application:', err);
       setMessage({ type: 'error', text: err.message || 'Failed to deny application.' });
@@ -269,39 +298,8 @@ export default function JobsPage() {
 
     setLoading(true);
     try {
-      let conversationId: string | null = null;
-
-      // Try to find an existing conversation
-      const { data: existingConversations, error: fetchConvError } = await supabase
-        .from('conversations')
-        .select('id')
-        .or(`and(customer_id.eq.${user.id},worker_id.eq.${targetUserId},job_id.eq.${jobId}),and(customer_id.eq.${targetUserId},worker_id.eq.${user.id},job_id.eq.${jobId})`);
-
-      if (fetchConvError) throw fetchConvError;
-
-      if (existingConversations && existingConversations.length > 0) {
-        conversationId = existingConversations[0].id;
-      } else {
-        // If no conversation exists, create one
-        const { data: newConversation, error: createConvError } = await supabase
-          .from('conversations')
-          .insert({
-            customer_id: user.role === 'customer' ? user.id : targetUserId,
-            worker_id: user.role === 'worker' ? user.id : targetUserId,
-            job_id: jobId || null,
-          })
-          .select('id')
-          .single();
-
-        if (createConvError) throw createConvError;
-        conversationId = newConversation.id;
-      }
-
-      if (conversationId) {
-        router.push(`/messages/${conversationId}`);
-      } else {
-        setMessage({ type: 'error', text: 'Failed to start conversation.' });
-      }
+      // Mock message functionality - just navigate to messages page
+      router.push(`/messages`);
     } catch (err: any) {
       console.error('Error handling message:', err);
       setMessage({ type: 'error', text: err.message || 'Failed to start conversation.' });

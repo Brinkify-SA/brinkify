@@ -5,8 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
-import { Home, Briefcase, MessageSquare, Star, Wallet, Settings, LogOut, User as UserIcon, Building, Users, BarChart3 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { Home, Briefcase, MessageSquare, Star, Wallet, Settings, LogOut, User as UserIcon, Building, Users, BarChart3, Zap, Menu, Search } from 'lucide-react';
 import Loader from '@/components/loader'; // Assuming a Loader component exists
 
 interface UserProfile {
@@ -33,49 +32,76 @@ export default function DashboardPage() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
       setLoading(true);
       setError(null);
       try {
-        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-
-        if (authError || !authUser) {
-          router.push('/auth/login');
-          return;
-        }
-
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*, team_members(count), projects(count)') // Fetch counts for company-specific fields
-          .eq('id', authUser.id)
-          .single();
-
-        if (profileError) {
-          throw profileError;
-        }
-
-        // Adjust profile data for company-specific counts
-        const userProfile: UserProfile = {
-          ...profile,
-          team_size: profile.team_members?.[0]?.count || 0,
-          active_projects: profile.projects?.[0]?.count || 0,
+        // Mock user data for testing
+        const mockUsers: { [key: string]: UserProfile } = {
+          'homeowner@test.com': {
+            id: '1',
+            full_name: 'John Homeowner',
+            role: 'customer',
+            avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John',
+            location: 'Johannesburg, SA',
+            is_verified: true,
+            plan_name: 'Premium',
+            total_spent: 15500,
+            saved_pros_count: 12,
+          },
+          'worker@test.com': {
+            id: '2',
+            full_name: 'Sarah Worker',
+            role: 'worker',
+            avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
+            location: 'Cape Town, SA',
+            is_verified: true,
+            plan_name: 'Professional',
+            total_earnings: 42500,
+            average_rating: 4.8,
+            job_leads_used: 15,
+            leads_limit: 50,
+          },
+          'company@test.com': {
+            id: '3',
+            full_name: 'BuildTech Solutions',
+            role: 'company',
+            avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=BuildTech',
+            location: 'Pretoria, SA',
+            is_verified: true,
+            plan_name: 'Enterprise',
+            team_size: 24,
+            active_projects: 8,
+            job_leads_used: 145,
+            leads_limit: 500,
+          },
         };
 
-        setUser(userProfile as UserProfile);
+        // Get logged-in user email from localStorage or URL param
+        const storedEmail = localStorage.getItem('userEmail');
+        const urlParams = new URLSearchParams(window.location.search);
+        const emailParam = urlParams.get('email');
+        const userEmail = storedEmail || emailParam || 'homeowner@test.com';
+
+        // Set the current user email
+        setCurrentUserEmail(userEmail);
+
+        // Get the mock user data for this email
+        const mockUser = mockUsers[userEmail] || mockUsers['homeowner@test.com'];
+        setUser(mockUser as UserProfile);
       } catch (err: any) {
-        console.error('Error fetching user profile:', err);
+        console.error('Error loading user profile:', err);
         setError(err.message || 'Failed to load user profile.');
-        router.push('/auth/login'); // Redirect to login on error
       } finally {
         setLoading(false);
       }
     };
 
     fetchUserProfile();
-  }, [router, supabase]);
+  }, []);
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
@@ -111,7 +137,7 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <p className="text-gray-600 dark:text-gray-300">No user data found. Please log in.</p>
-        <button onClick={() => router.push('/auth/login')} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+        <button onClick={() => router.push('/')} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
           Go to Login
         </button>
       </div>
@@ -120,47 +146,49 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors">
-      {/* --- Navbar --- */}
-      <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <Link href="/" className="text-xl font-bold text-blue-600 dark:text-blue-400">
-            Brinkify SA
+      {/* TOP NAVBAR - keep consistent with Feed page */}
+      <header className="sticky top-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-lg border-b border-gray-200 dark:border-gray-700 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+          <Link href="/dashboard" className="flex items-center gap-2 group">
+            <span className="font-bold text-lg bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">Brinkify Dashboard</span>
           </Link>
-          <div className="hidden md:block"><ModeToggle /></div>
+
+          {/* DESKTOP NAV */}
+          <div className="hidden md:flex items-center gap-6">
+            <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition">
+              <Home className="w-4 h-4" />
+              <span>Home</span>
+            </button>
+            <button onClick={() => navigate('/feed')} className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition">
+              <Search className="w-4 h-4" />
+              <span>Feed</span>
+            </button>
+            <ModeToggle />
+            <button onClick={() => { localStorage.removeItem('userEmail'); handleLogout(); }} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition">
+              Logout
+            </button>
+          </div>
+
+          {/* MOBILE MENU BUTTON */}
           <button
-            onClick={toggleMenu}
+            onClick={() => setMenuOpen(!menuOpen)}
             className="md:hidden text-blue-600 dark:text-blue-400 focus:outline-none"
             aria-label="Toggle menu"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+            <Menu className="w-6 h-6" />
           </button>
         </div>
       </header>
 
-      {/* Mobile Menu */}
+      {/* MOBILE MENU */}
       {menuOpen && (
-        <div className="md:hidden fixed inset-0 z-[60]">
-          <div className="absolute inset-0 bg-black/50" onClick={toggleMenu}></div>
-          <div className="absolute left-0 top-0 h-full w-3/4 bg-blue-600 text-white p-6 pt-16">
-            <button onClick={toggleMenu} className="absolute top-4 right-4 text-white" aria-label="Close menu">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <nav className="flex flex-col space-y-4 mt-6">
-              <button onClick={() => navigate('/')} className="text-left text-lg font-medium">Home</button>
-              <button onClick={() => navigate('/explore')} className="text-left text-lg font-medium">Explore</button>
-              <button onClick={() => navigate('/about')} className="text-left text-lg font-medium">About Us</button>
-              <button onClick={() => navigate('/profile/edit')} className="text-left text-lg font-medium flex items-center gap-2">
-                <UserIcon className="w-4 h-4" /> Edit Profile
-              </button>
-              <button onClick={handleLogout} className="text-left text-lg font-medium flex items-center gap-2">
-                <LogOut className="w-4 h-4" /> Log Out
-              </button>
-            </nav>
-          </div>
+        <div className="md:hidden border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+          <button onClick={() => { navigate('/dashboard'); setMenuOpen(false); }} className="block w-full text-left py-2 hover:text-blue-600">Dashboard</button>
+          <button onClick={() => { navigate('/feed'); setMenuOpen(false); }} className="block w-full text-left py-2 hover:text-blue-600">Feed</button>
+          <button onClick={() => { navigate('/explore'); setMenuOpen(false); }} className="block w-full text-left py-2 hover:text-blue-600">Explore</button>
+          <button onClick={() => { navigate('/about'); setMenuOpen(false); }} className="block w-full text-left py-2 hover:text-blue-600">About Us</button>
+          <button onClick={() => { navigate('/profile/edit'); setMenuOpen(false); }} className="block w-full text-left py-2 hover:text-blue-600">Edit Profile</button>
+          <button onClick={() => { localStorage.removeItem('userEmail'); handleLogout(); }} className="block w-full text-left py-2 text-red-600 hover:text-red-700 font-medium">Logout</button>
         </div>
       )}
 
@@ -270,36 +298,26 @@ function WorkerDashboard({ user }: { user: UserProfile }) {
     { label: 'Avg. Rating', value: '0.0', change: '' },
   ]);
   const [loadingStats, setLoadingStats] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
     const fetchWorkerStats = async () => {
       setLoadingStats(true);
       try {
-        // Fetch active jobs
-        const { count: activeJobsCount, error: jobsError } = await supabase
-          .from('jobs')
-          .select('*', { count: 'exact' })
-          .eq('worker_id', user.id)
-          .in('status', ['assigned', 'in-progress']); // Filter for active jobs
-
-        if (jobsError) throw jobsError;
-
+        // Mock data for worker
         setStats([
-          { label: 'Active Jobs', value: activeJobsCount?.toString() || '0', change: '' },
-          { label: 'Total Earnings', value: `R ${user.total_earnings?.toLocaleString() || '0'}`, change: '' },
-          { label: 'Avg. Rating', value: user.average_rating?.toFixed(1) || '0.0', change: '⭐' },
+          { label: 'Active Jobs', value: '3', change: '+2 this week' },
+          { label: 'Total Earnings', value: `R ${user.total_earnings?.toLocaleString() || '42,500'}`, change: '' },
+          { label: 'Avg. Rating', value: user.average_rating?.toFixed(1) || '4.8', change: '⭐' },
         ]);
       } catch (error) {
-        console.error('Error fetching worker stats:', error);
-        // Optionally set an error state for the worker dashboard
+        console.error('Error loading worker stats:', error);
       } finally {
         setLoadingStats(false);
       }
     };
 
     fetchWorkerStats();
-  }, [user.id, user.total_earnings, user.average_rating, supabase]);
+  }, [user.total_earnings, user.average_rating]);
 
   return (
     <div className="space-y-8">
@@ -352,35 +370,26 @@ function CustomerDashboard({ user }: { user: UserProfile }) {
     { label: 'Saved Pros', value: '0', change: '' },
   ]);
   const [loadingStats, setLoadingStats] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
     const fetchCustomerStats = async () => {
       setLoadingStats(true);
       try {
-        // Fetch active jobs posted by the customer
-        const { count: activeJobsCount, error: jobsError } = await supabase
-          .from('jobs')
-          .select('*', { count: 'exact' })
-          .eq('customer_id', user.id)
-          .in('status', ['open', 'assigned', 'in-progress']); // Filter for active jobs
-
-        if (jobsError) throw jobsError;
-
+        // Mock data for customer
         setStats([
-          { label: 'Active Jobs', value: activeJobsCount?.toString() || '0', change: '' },
-          { label: 'Total Spent', value: `R ${user.total_spent?.toLocaleString() || '0'}`, change: '' },
-          { label: 'Saved Pros', value: user.saved_pros_count?.toString() || '0', change: '' },
+          { label: 'Active Jobs', value: '2', change: '+1 pending' },
+          { label: 'Total Spent', value: `R ${user.total_spent?.toLocaleString() || '15,500'}`, change: '' },
+          { label: 'Saved Pros', value: user.saved_pros_count?.toString() || '12', change: '' },
         ]);
       } catch (error) {
-        console.error('Error fetching customer stats:', error);
+        console.error('Error loading customer stats:', error);
       } finally {
         setLoadingStats(false);
       }
     };
 
     fetchCustomerStats();
-  }, [user.id, user.total_spent, user.saved_pros_count, supabase]);
+  }, [user.total_spent, user.saved_pros_count]);
 
   return (
     <div className="space-y-8">
@@ -409,6 +418,10 @@ function CustomerDashboard({ user }: { user: UserProfile }) {
             <Home className="text-blue-600 dark:text-blue-400 mb-2" />
             <span>Post a Job</span>
           </Link>
+          <Link href="/feed" className="flex flex-col items-center justify-center p-4 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition">
+            <MessageSquare className="text-blue-600 dark:text-blue-400 mb-2" />
+            <span>View Trends</span>
+          </Link>
           <Link href="/messages" className="flex flex-col items-center justify-center p-4 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition">
             <MessageSquare className="text-blue-600 dark:text-blue-400 mb-2" />
             <span>Messages</span>
@@ -436,22 +449,37 @@ function CompanyDashboard({ user }: { user: UserProfile }) {
     { label: 'Active Projects', value: user.active_projects?.toString() || '0', icon: Briefcase },
     { label: 'Leads Used', value: `${user.job_leads_used || 0}/${user.leads_limit || 100}`, icon: BarChart3 },
   ]);
-  const [recentProjects, setRecentProjects] = useState<CompanyProject[]>([]);
+  const [recentProjects, setRecentProjects] = useState<CompanyProject[]>([
+    {
+      id: '1',
+      title: 'Office Renovation',
+      client_name: 'Tech Corp Ltd',
+      status: 'in-progress',
+      created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: '2',
+      title: 'Warehouse Extension',
+      client_name: 'Logistics Inc',
+      status: 'completed',
+      created_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+  ]);
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingProjects, setLoadingProjects] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
     const fetchCompanyStats = async () => {
       setLoadingStats(true);
       try {
+        // Mock data
         setStats([
-          { label: 'Team Members', value: user.team_size?.toString() || '0', icon: Users },
-          { label: 'Active Projects', value: user.active_projects?.toString() || '0', icon: Briefcase },
-          { label: 'Leads Used', value: `${user.job_leads_used || 0}/${user.leads_limit || 100}`, icon: BarChart3 },
+          { label: 'Team Members', value: user.team_size?.toString() || '24', icon: Users },
+          { label: 'Active Projects', value: user.active_projects?.toString() || '8', icon: Briefcase },
+          { label: 'Leads Used', value: `${user.job_leads_used || 145}/${user.leads_limit || 500}`, icon: BarChart3 },
         ]);
       } catch (error) {
-        console.error('Error fetching company stats:', error);
+        console.error('Error loading company stats:', error);
       } finally {
         setLoadingStats(false);
       }
@@ -460,17 +488,9 @@ function CompanyDashboard({ user }: { user: UserProfile }) {
     const fetchRecentProjects = async () => {
       setLoadingProjects(true);
       try {
-        const { data, error } = await supabase
-          .from('projects')
-          .select('id, title, client_name, status, created_at')
-          .eq('company_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(2);
-
-        if (error) throw error;
-        setRecentProjects(data as CompanyProject[]);
+        // Mock projects already set in state
       } catch (error) {
-        console.error('Error fetching recent projects:', error);
+        console.error('Error loading recent projects:', error);
       } finally {
         setLoadingProjects(false);
       }
@@ -478,7 +498,7 @@ function CompanyDashboard({ user }: { user: UserProfile }) {
 
     fetchCompanyStats();
     fetchRecentProjects();
-  }, [user.id, user.leads_limit, user.job_leads_used, user.team_size, user.active_projects, supabase]);
+  }, [user.id, user.leads_limit, user.job_leads_used, user.team_size, user.active_projects]);
 
   return (
     <div className="space-y-8">

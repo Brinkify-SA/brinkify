@@ -10,7 +10,6 @@ import {
   ArrowLeft,
   Link as LinkIcon,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import Loader from '@/components/loader'; // Assuming a Loader component exists
 
 interface UserProfile {
@@ -33,7 +32,57 @@ export default function PublicProfilePage() {
   const [worker, setWorker] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+
+  // Mock workers data
+  const mockWorkers: { [key: string]: UserProfile } = {
+    '2': {
+      id: '2',
+      full_name: 'Sarah Worker',
+      avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
+      location: 'Cape Town, SA',
+      role: 'worker',
+      bio: 'Experienced electrician with 8+ years in residential and commercial wiring. Fully compliant with SANS standards.',
+      skills: ['Electrical Wiring', 'LED Installation', 'Circuit Breaker Repair', 'Solar Panel Wiring'],
+      hourly_rate: 350,
+      average_rating: 4.8,
+      portfolio: [
+        'https://images.unsplash.com/photo-1581578021424-eb98b87c2c65?auto=format&fit=crop&w=600',
+        'https://images.unsplash.com/photo-1600210492486-724fe5384259?auto=format&fit=crop&w=600',
+      ],
+      reviews_count: 24,
+    },
+    '3': {
+      id: '3',
+      full_name: 'Mike Electrician',
+      avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike',
+      location: 'Johannesburg, SA',
+      role: 'worker',
+      bio: 'Licensed electrician specializing in home renovations and repairs. Fast, reliable, and professional.',
+      skills: ['Electrical Repairs', 'Wiring', 'Fixture Installation', 'Troubleshooting'],
+      hourly_rate: 300,
+      average_rating: 4.6,
+      portfolio: [
+        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600',
+      ],
+      reviews_count: 18,
+    },
+    '4': {
+      id: '4',
+      full_name: 'Thabo N.',
+      avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Thabo',
+      location: 'Pretoria, SA',
+      role: 'worker',
+      bio: 'Master plumber with 12 years of experience. Specialized in pipe installation and repairs.',
+      skills: ['Plumbing', 'Pipe Installation', 'Leak Repair', 'Drain Cleaning'],
+      hourly_rate: 280,
+      average_rating: 4.9,
+      portfolio: [
+        'https://images.unsplash.com/photo-1581578021424-eb98b87c2c65?auto=format&fit=crop&w=600',
+        'https://images.unsplash.com/photo-1600210492486-724fe5384259?auto=format&fit=crop&w=600',
+      ],
+      reviews_count: 32,
+    },
+  };
 
   useEffect(() => {
     const fetchWorkerProfile = async () => {
@@ -47,33 +96,18 @@ export default function PublicProfilePage() {
           return;
         }
 
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', profileId)
-          .single();
+        // Get mock worker data
+        const profile = mockWorkers[profileId];
 
-        if (profileError) {
-          throw profileError;
-        }
-
-        if (!profile || profile.role !== 'worker') {
-          setError('Worker profile not found or invalid role.');
+        if (!profile) {
+          setError('Worker profile not found.');
           setLoading(false);
           return;
         }
 
-        // Fetch reviews count
-        const { count: reviewsCount, error: reviewsError } = await supabase
-          .from('reviews')
-          .select('*', { count: 'exact' })
-          .eq('reviewed_id', profileId);
-
-        if (reviewsError) throw reviewsError;
-
-        setWorker({ ...profile, reviews_count: reviewsCount } as UserProfile);
+        setWorker(profile as UserProfile);
       } catch (err: any) {
-        console.error('Error fetching worker profile:', err);
+        console.error('Error loading worker profile:', err);
         setError(err.message || 'Failed to load worker profile.');
       } finally {
         setLoading(false);
@@ -81,7 +115,7 @@ export default function PublicProfilePage() {
     };
 
     fetchWorkerProfile();
-  }, [params?.id, supabase]);
+  }, [params?.id]);
 
   const handleBack = () => router.back();
   const handleContact = () => {
