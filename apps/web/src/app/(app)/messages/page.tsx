@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
-import { MessageSquare, MapPin, Briefcase, Home, ArrowLeft } from 'lucide-react';
+import { MessageSquare, MapPin, Briefcase, Home, ArrowLeft, Trash2 } from 'lucide-react';
 import Loader from '@/components/loader'; // Assuming a Loader component exists
 
 interface UserProfile {
@@ -39,11 +39,23 @@ interface Conversation {
   unread_by_user?: boolean; // To indicate if there are unread messages for the current user
 }
 
+// Conversation from help requests (worker-initiated)
+interface HelpRequestConversation {
+  id: string;
+  created_at: string;
+  requester_email: string;
+  responder_email: string;
+  help_request_id: string;
+  help_request_title: string;
+  last_message_text?: string;
+}
+
 export default function MessagesPage() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [helpConversations, setHelpConversations] = useState<HelpRequestConversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -132,6 +144,21 @@ export default function MessagesPage() {
         );
 
         setConversations(userConversations);
+
+        // Load help-request conversations from localStorage
+        const rawHelpConvs = localStorage.getItem('conversations');
+        if (rawHelpConvs) {
+          try {
+            const helpConvs: HelpRequestConversation[] = JSON.parse(rawHelpConvs);
+            // Filter to conversations involving current user
+            const userHelpConvs = helpConvs.filter(
+              conv => conv.requester_email === storedEmail || conv.responder_email === storedEmail
+            );
+            setHelpConversations(userHelpConvs);
+          } catch (e) {
+            console.warn('Failed to load help request conversations', e);
+          }
+        }
       } catch (err: any) {
         console.error('Error loading conversations:', err);
         setError(err.message || 'Failed to load messages.');
@@ -152,6 +179,33 @@ export default function MessagesPage() {
   const handleLogout = () => {
     localStorage.removeItem('userEmail');
     router.push('/auth/login');
+  };
+
+  const deleteHelpConversation = (convId: string) => {
+    if (!confirm('Are you sure you want to delete this conversation?')) return;
+
+    try {
+      // Remove from conversations
+      const rawConvs = localStorage.getItem('conversations');
+      if (rawConvs) {
+        const convs: HelpRequestConversation[] = JSON.parse(rawConvs);
+        const filtered = convs.filter((c) => c.id !== convId);
+        localStorage.setItem('conversations', JSON.stringify(filtered));
+      }
+
+      // Remove messages
+      const rawMsgs = localStorage.getItem('help_request_messages');
+      if (rawMsgs) {
+        const msgs: any[] = JSON.parse(rawMsgs);
+        const filtered = msgs.filter((m) => m.conversation_id !== convId);
+        localStorage.setItem('help_request_messages', JSON.stringify(filtered));
+      }
+
+      // Refresh page
+      window.location.reload();
+    } catch (err: any) {
+      console.error('Error deleting conversation:', err);
+    }
   };
 
   const handleBack = () => {
@@ -293,6 +347,58 @@ export default function MessagesPage() {
               );
             })}
           </div>
+        )}
+
+        {helpConversations.length > 0 && user?.role === 'worker' && (
+          <>
+            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Help Request Messages</h3>
+            </div>
+            <div className="space-y-4">
+              {helpConversations.map((conv) => {
+                const otherEmail = conv.requester_email === (localStorage.getItem('userEmail') || 'homeowner@test.com') 
+                  ? conv.responder_email 
+                  : conv.requester_email;
+                const otherName = otherEmail === 'homeowner@test.com' ? 'John Homeowner' : otherEmail === 'worker@test.com' ? 'Sarah Worker' : otherEmail;
+                const otherAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${otherName.split(' ')[0]}`;
+
+                return (
+                  <div key={conv.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition flex items-center">
+                    <Link href={`/messages/${conv.id}`} className="block flex-1 p-4">
+                      <div className="flex gap-3">
+                        <div className="relative">
+                          <img src={otherAvatar} alt={otherName} className="w-12 h-12 rounded-full" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-start">
+                            <h2 className="font-bold text-gray-800 dark:text-white truncate">{otherName}</h2>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                              {new Date(conv.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 mt-1 text-sm text-gray-600 dark:text-gray-400">
+                            <MessageSquare className="w-3 h-3" />
+                            <span>{conv.help_request_title}</span>
+                          </div>
+                          <p className="mt-2 text-gray-600 dark:text-gray-400 line-clamp-1">{conv.last_message_text}</p>
+                        </div>
+                      </div>
+                    </Link>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        deleteHelpConversation(conv.id);
+                      }}
+                      className="px-3 py-2 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition"
+                      title="Delete conversation"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </main>
 
