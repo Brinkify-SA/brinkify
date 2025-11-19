@@ -118,8 +118,17 @@ export default function FeedPage() {
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [savedPosts, setSavedPosts] = useState<Set<string>>(new Set());
   const [filterOpen, setFilterOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isHomeowner, setIsHomeowner] = useState(false);
 
   const categories = ['All', 'Electricians', 'Gardeners', 'Painters', 'Tilers', 'Plumbers'];
+
+  // Check user type on mount
+  useEffect(() => {
+    const email = localStorage.getItem('userEmail');
+    setUserEmail(email);
+    setIsHomeowner(email ? !email.includes('worker') : false);
+  }, []);
 
   const getSubscriptionTier = (workerId: string): number => {
     const tier = WORKER_SUBSCRIPTIONS[workerId] || 'basic';
@@ -190,6 +199,87 @@ export default function FeedPage() {
   const handleLogout = () => {
     localStorage.removeItem('userEmail');
     navigate('/auth/login');
+  };
+
+  const contactWorker = (post: typeof MOCK_FEED_POSTS[0]) => {
+    if (!isHomeowner) {
+      alert('Only homeowners can contact workers');
+      return;
+    }
+
+    if (!userEmail) {
+      alert('Please log in first');
+      return;
+    }
+
+    // Create conversation with worker
+    const convId = `conv-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const initialMsg = `Hi ${post.worker.name}, I'm interested in your "${post.title}" service. Can we discuss this?`;
+
+    interface HelpRequestConversation {
+      id: string;
+      created_at: string;
+      requester_email: string;
+      responder_email: string;
+      help_request_id: string;
+      help_request_title: string;
+      last_message_text?: string;
+    }
+
+    interface Message {
+      id: string;
+      created_at: string;
+      conversation_id: string;
+      sender_email: string;
+      text: string;
+    }
+
+    const newConversation: HelpRequestConversation = {
+      id: convId,
+      created_at: new Date().toISOString(),
+      requester_email: userEmail,
+      responder_email: post.worker.id,
+      help_request_id: post.id,
+      help_request_title: post.title,
+      last_message_text: initialMsg,
+    };
+
+    const newMsg: Message = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      created_at: new Date().toISOString(),
+      conversation_id: convId,
+      sender_email: userEmail,
+      text: initialMsg,
+    };
+
+    // Save to localStorage
+    const rawConvs = localStorage.getItem('conversations');
+    let conversations: HelpRequestConversation[] = [];
+    if (rawConvs) {
+      try {
+        conversations = JSON.parse(rawConvs);
+      } catch (e) {
+        console.warn('Invalid conversations');
+      }
+    }
+
+    const rawMsgs = localStorage.getItem('help_request_messages');
+    let messages: Message[] = [];
+    if (rawMsgs) {
+      try {
+        messages = JSON.parse(rawMsgs);
+      } catch (e) {
+        console.warn('Invalid messages');
+      }
+    }
+
+    conversations.push(newConversation);
+    messages.push(newMsg);
+    localStorage.setItem('conversations', JSON.stringify(conversations));
+    localStorage.setItem('help_request_messages', JSON.stringify(messages));
+
+    // Navigate to chat
+    router.push(`/messages/${convId}`);
   };
 
   return (
@@ -502,10 +592,27 @@ export default function FeedPage() {
                           <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
                           {isLiked ? 'Liked' : 'Like'}
                         </button>
-                        <button className="flex-1 py-2 rounded-lg font-medium bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 transition">
-                          <MessageCircle className="w-4 h-4" />
-                          <span className="hidden sm:inline">Message</span>
-                        </button>
+                        {isHomeowner ? (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              contactWorker(post);
+                            }}
+                            className="flex-1 py-2 rounded-lg font-medium bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 transition"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                            <span className="hidden sm:inline">Contact</span>
+                          </button>
+                        ) : (
+                          <button
+                            disabled
+                            className="flex-1 py-2 rounded-lg font-medium bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 flex items-center justify-center gap-2 cursor-not-allowed"
+                            title="Only homeowners can contact workers"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                            <span className="hidden sm:inline">Contact</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
