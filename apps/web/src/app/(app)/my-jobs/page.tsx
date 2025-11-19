@@ -357,13 +357,13 @@ function JobCard({
 
   const displayBudget = (job: Job) => {
     if (job.min_budget && job.max_budget) {
-      return `R ${job.min_budget} - ${job.max_budget}`;
+      return `ZAR ${job.min_budget} - ${job.max_budget}`;
     }
     if (job.min_budget) {
-      return `R ${job.min_budget}`;
+      return `ZAR ${job.min_budget}`;
     }
     if (job.max_budget) {
-      return `Up to R ${job.max_budget}`;
+      return `Up to ZAR ${job.max_budget}`;
     }
     return 'N/A';
   };

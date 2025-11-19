@@ -13,7 +13,7 @@ import SubscriptionModal from '@/components/SubscriptionModal';
 const WORKER_PLANS = [
   {
     name: 'Basic',
-    price: 'R19/mo',
+    price: 'ZAR 19/mo',
     description: 'Perfect for getting started',
     features: [
       'Profile creation & listing in worker directory',
@@ -28,7 +28,7 @@ const WORKER_PLANS = [
   },
   {
     name: 'Pro',
-    price: 'R29/mo',
+    price: 'ZAR 29/mo',
     description: 'For serious professionals',
     features: [
       '✅ Everything in Basic',
@@ -44,7 +44,7 @@ const WORKER_PLANS = [
   },
   {
     name: 'Elite',
-    price: 'R49/mo',
+    price: 'ZAR 49/mo',
     description: 'Maximize your visibility',
     features: [
       '✅ Everything in Pro',
@@ -63,7 +63,7 @@ const WORKER_PLANS = [
 const COMPANY_PLANS = [
   {
     name: 'Starter',
-    price: 'R299/mo',
+    price: 'ZAR 299/mo',
     description: 'Small business / contractor',
     features: [
       'Company profile with logo and business verification badge',
@@ -80,7 +80,7 @@ const COMPANY_PLANS = [
   },
   {
     name: 'Business',
-    price: 'R499/mo',
+    price: 'ZAR 499/mo',
     description: 'Mid-size company or facility managers',
     features: [
       '✅ Everything in Starter',
@@ -98,7 +98,7 @@ const COMPANY_PLANS = [
   },
   {
     name: 'Enterprise',
-    price: 'R899/mo',
+    price: 'ZAR 899/mo',
     description: 'Developers or agencies',
     features: [
       '✅ Everything in Business',

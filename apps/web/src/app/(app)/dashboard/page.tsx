@@ -306,7 +306,7 @@ function WorkerDashboard({ user }: { user: UserProfile }) {
         // Mock data for worker
         setStats([
           { label: 'Active Jobs', value: '3', change: '+2 this week' },
-          { label: 'Total Earnings', value: `R ${user.total_earnings?.toLocaleString() || '42,500'}`, change: '' },
+          { label: 'Total Earnings', value: `ZAR ${user.total_earnings?.toLocaleString() || '42,500'}`, change: '' },
           { label: 'Avg. Rating', value: user.average_rating?.toFixed(1) || '4.8', change: '⭐' },
         ]);
       } catch (error) {
@@ -341,7 +341,7 @@ function WorkerDashboard({ user }: { user: UserProfile }) {
 
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
         <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Link href="/jobs" className="flex flex-col items-center justify-center p-4 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition">
             <Briefcase className="text-blue-600 dark:text-blue-400 mb-2" />
             <span>View Jobs</span>
@@ -353,6 +353,14 @@ function WorkerDashboard({ user }: { user: UserProfile }) {
           <Link href="/pricing" className="flex flex-col items-center justify-center p-4 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition">
             <Wallet className="text-blue-600 dark:text-blue-400 mb-2" />
             <span>View Plans</span>
+          </Link>
+          <Link href="/request-help" className="flex flex-col items-center justify-center p-4 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition">
+            <Users className="text-blue-600 dark:text-blue-400 mb-2" />
+            <span>Request Help</span>
+          </Link>
+           <Link href="/feed" className="flex flex-col items-center justify-center p-4 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition">
+            <Users className="text-blue-600 dark:text-blue-400 mb-2" />
+            <span>Trends</span>
           </Link>
         </div>
       </div>
@@ -378,7 +386,7 @@ function CustomerDashboard({ user }: { user: UserProfile }) {
         // Mock data for customer
         setStats([
           { label: 'Active Jobs', value: '2', change: '+1 pending' },
-          { label: 'Total Spent', value: `R ${user.total_spent?.toLocaleString() || '15,500'}`, change: '' },
+          { label: 'Total Spent', value: `ZAR ${user.total_spent?.toLocaleString() || '15,500'}`, change: '' },
           { label: 'Saved Pros', value: user.saved_pros_count?.toString() || '12', change: '' },
         ]);
       } catch (error) {

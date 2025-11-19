@@ -21,8 +21,8 @@ const MOCK_FEED_POSTS = [
     location: 'Johannesburg, Sandton',
     description: 'Upgraded old wiring, added 3 new outlets, and installed LED lighting. All compliant with SANS 10142.',
     images: [
-      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600',
-      'https://images.unsplash.com/photo-1581578021424-eb98b87c2c65?auto=format&fit=crop&w=600',
+      'https://images.pexels.com/photos/2724749/pexels-photo-2724749.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'https://images.pexels.com/photos/5632399/pexels-photo-5632399.jpeg?auto=compress&cs=tinysrgb&w=600',
     ],
     likes: 24,
     comments: 3,
@@ -30,7 +30,7 @@ const MOCK_FEED_POSTS = [
     saves: 8,
     createdAt: '2025-10-20',
     completionTime: '3 days',
-    price: 'R 2,500',
+    price: 'ZAR 2,500',
     verified: true,
   },
   {
@@ -41,8 +41,8 @@ const MOCK_FEED_POSTS = [
     location: 'Cape Town, Southern Suburbs',
     description: 'Complete lawn restoration, hedge trimming, and new flower beds installed. Client loved the result!',
     images: [
-      'https://images.unsplash.com/photo-1506780488710-c3f390da9f4e?auto=format&fit=crop&w=600',
-      'https://images.unsplash.com/photo-1506260459315-9c4c96d6d568?auto=format&fit=crop&w=600',
+      'https://images.pexels.com/photos/1105726/pexels-photo-1105726.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'https://images.pexels.com/photos/3225517/pexels-photo-3225517.jpeg?auto=compress&cs=tinysrgb&w=600',
     ],
     likes: 42,
     comments: 7,
@@ -50,7 +50,7 @@ const MOCK_FEED_POSTS = [
     saves: 15,
     createdAt: '2025-10-22',
     completionTime: '2 days',
-    price: 'R 1,800',
+    price: 'ZAR 1,800',
     verified: true,
   },
   {
@@ -61,7 +61,7 @@ const MOCK_FEED_POSTS = [
     location: 'Johannesburg, Sandton',
     description: 'Fresh coat of Dulux Satin in Classic White. Walls prepped, taped, and finished with clean lines.',
     images: [
-      'https://images.unsplash.com/photo-1600210492486-724fe5384259?auto=format&fit=crop&w=600',
+      'https://images.pexels.com/photos/1350789/pexels-photo-1350789.jpeg?auto=compress&cs=tinysrgb&w=600',
     ],
     likes: 18,
     comments: 2,
@@ -69,7 +69,7 @@ const MOCK_FEED_POSTS = [
     saves: 5,
     createdAt: '2025-10-24',
     completionTime: '1 day',
-    price: 'R 950',
+    price: 'ZAR 950',
     verified: true,
   },
   {
@@ -80,8 +80,8 @@ const MOCK_FEED_POSTS = [
     location: 'Pretoria, Eastwood',
     description: 'Full wall and floor tiling with anti-slip porcelain tiles. Waterproofing applied before installation.',
     images: [
-      'https://images.unsplash.com/photo-1600210492486-724fe5384259?auto=format&fit=crop&w=600',
-      'https://images.unsplash.com/photo-1581578021424-eb98b87c2c65?auto=format&fit=crop&w=600',
+      'https://images.pexels.com/photos/1350789/pexels-photo-1350789.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'https://images.pexels.com/photos/2724749/pexels-photo-2724749.jpeg?auto=compress&cs=tinysrgb&w=600',
     ],
     likes: 31,
     comments: 5,
@@ -89,7 +89,7 @@ const MOCK_FEED_POSTS = [
     saves: 12,
     createdAt: '2025-10-25',
     completionTime: '4 days',
-    price: 'R 3,200',
+    price: 'ZAR 3,200',
     verified: true,
   },
 ];

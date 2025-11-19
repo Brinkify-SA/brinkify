@@ -66,8 +66,8 @@ export default function EditProfilePage() {
       skills: ['Landscaping', 'Garden Design', 'Pruning', 'Soil Preparation'],
       hourly_rate: '180',
       portfolio: [
-        { title: 'Rose Garden Project', url: 'https://images.unsplash.com/photo-1506780488710-c3f390da9f4e?auto=format&fit=crop&w=600' },
-        { title: 'Lawn Restoration', url: 'https://images.unsplash.com/photo-1506260459315-9c4c96d6d568?auto=format&fit=crop&w=600' },
+        { title: 'Rose Garden Project', url: 'https://images.pexels.com/photos/1105726/pexels-photo-1105726.jpeg?auto=compress&cs=tinysrgb&w=600' },
+        { title: 'Lawn Restoration', url: 'https://images.pexels.com/photos/3225517/pexels-photo-3225517.jpeg?auto=compress&cs=tinysrgb&w=600' },
       ],
       bank_name: 'FNB',
       account_number: '7654321098765',
@@ -86,7 +86,7 @@ export default function EditProfilePage() {
       skills: ['Electrical Wiring', 'Circuit Installation', 'Safety Compliance', 'LED Installation'],
       hourly_rate: '250',
       portfolio: [
-        { title: 'Kitchen Rewiring', url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600' },
+        { title: 'Kitchen Rewiring', url: 'https://images.pexels.com/photos/2724749/pexels-photo-2724749.jpeg?auto=compress&cs=tinysrgb&w=600' },
       ],
       bank_name: 'Standard Bank',
       account_number: '1234567890123',
@@ -105,7 +105,7 @@ export default function EditProfilePage() {
       skills: ['Plumbing', 'Pipe Installation', 'Leak Detection', 'Bathroom Fitting'],
       hourly_rate: '200',
       portfolio: [
-        { title: 'Bathroom Renovation', url: 'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?auto=format&fit=crop&w=600' },
+        { title: 'Bathroom Renovation', url: 'https://images.pexels.com/photos/1350789/pexels-photo-1350789.jpeg?auto=compress&cs=tinysrgb&w=600' },
       ],
       bank_name: 'Capitec',
       account_number: '9876543210987',
