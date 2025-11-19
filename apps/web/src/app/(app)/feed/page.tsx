@@ -7,21 +7,29 @@ import { ModeToggle } from '@/components/mode-toggle';
 import {
   Heart, MessageCircle, MapPin, Search, Filter, Share2, Star, 
   TrendingUp, Bookmark, Eye, ChevronLeft, ChevronRight, Clock,
-  DollarSign, CheckCircle, X, Menu, Home, Zap, Users, MoreVertical
+  Banknote, CheckCircle, X, Menu, Home, Zap, Users, MoreVertical
 } from 'lucide-react';
 
-// 🔒 Enhanced Mock Feed Posts
+// Worker subscription tiers mapping (for prioritization and badge colors)
+const WORKER_SUBSCRIPTIONS: { [key: string]: 'basic' | 'premium' | 'elite' } = {
+  '2': 'basic',      // Sarah Worker
+  '3': 'premium',    // Mike Electrician
+  '4': 'elite',      // Thabo N.
+};
+
+// 🔒 Enhanced Mock Feed Posts with subscription tier
 const MOCK_FEED_POSTS = [
   {
     id: 'post_1',
+    workerId: '4',
     worker: { id: '4', name: 'Thabo N.', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Thabo', rating: 4.9, reviews: 32 },
     title: 'Kitchen Rewiring Complete',
     category: 'Electricians',
     location: 'Johannesburg, Sandton',
     description: 'Upgraded old wiring, added 3 new outlets, and installed LED lighting. All compliant with SANS 10142. Project took 3 days and client was very satisfied with the quality.',
     images: [
-      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600',
-      'https://images.unsplash.com/photo-1581578021424-eb98b87c2c65?auto=format&fit=crop&w=600',
+      'https://images.pexels.com/photos/2724749/pexels-photo-2724749.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'https://images.pexels.com/photos/5632399/pexels-photo-5632399.jpeg?auto=compress&cs=tinysrgb&w=600',
     ],
     likes: 128,
     comments: 24,
@@ -29,20 +37,21 @@ const MOCK_FEED_POSTS = [
     saves: 32,
     createdAt: '2025-10-20',
     completionTime: '3 days',
-    price: 'R 2,500',
+    price: 'ZAR 2,500',
     verified: true,
     tags: ['electrical', 'wiring', 'led'],
   },
   {
     id: 'post_2',
+    workerId: '2',
     worker: { id: '2', name: 'Sarah Worker', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah', rating: 4.8, reviews: 24 },
     title: 'Garden Makeover',
     category: 'Gardeners',
     location: 'Cape Town, Southern Suburbs',
     description: 'Complete lawn restoration, hedge trimming, and new flower beds installed. Client loved the result! Beautiful transformation from bare patch to thriving green space.',
     images: [
-      'https://images.unsplash.com/photo-1506780488710-c3f390da9f4e?auto=format&fit=crop&w=600',
-      'https://images.unsplash.com/photo-1506260459315-9c4c96d6d568?auto=format&fit=crop&w=600',
+      'https://images.pexels.com/photos/1105726/pexels-photo-1105726.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'https://images.pexels.com/photos/3225517/pexels-photo-3225517.jpeg?auto=compress&cs=tinysrgb&w=600',
     ],
     likes: 215,
     comments: 47,
@@ -50,19 +59,20 @@ const MOCK_FEED_POSTS = [
     saves: 156,
     createdAt: '2025-10-22',
     completionTime: '2 days',
-    price: 'R 1,800',
+    price: 'ZAR 1,800',
     verified: true,
     tags: ['gardening', 'landscaping', 'lawn'],
   },
   {
     id: 'post_3',
+    workerId: '3',
     worker: { id: '3', name: 'Mike Electrician', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike', rating: 4.6, reviews: 18 },
     title: 'Bedroom Painting',
     category: 'Painters',
     location: 'Johannesburg, Sandton',
     description: 'Fresh coat of Dulux Satin in Classic White. Walls prepped, taped, and finished with clean lines. Professional finish with attention to detail.',
     images: [
-      'https://images.unsplash.com/photo-1600210492486-724fe5384259?auto=format&fit=crop&w=600',
+      'https://images.pexels.com/photos/1350789/pexels-photo-1350789.jpeg?auto=compress&cs=tinysrgb&w=600',
     ],
     likes: 94,
     comments: 12,
@@ -70,20 +80,21 @@ const MOCK_FEED_POSTS = [
     saves: 28,
     createdAt: '2025-10-24',
     completionTime: '1 day',
-    price: 'R 950',
+    price: 'ZAR 950',
     verified: true,
     tags: ['painting', 'interior', 'bedroom'],
   },
   {
     id: 'post_4',
+    workerId: '4',
     worker: { id: '4', name: 'Thabo N.', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Thabo', rating: 4.9, reviews: 32 },
     title: 'Bathroom Tiling',
     category: 'Tilers',
     location: 'Pretoria, Eastwood',
     description: 'Full wall and floor tiling with anti-slip porcelain tiles. Waterproofing applied before installation. Premium finish with perfect grouting.',
     images: [
-      'https://images.unsplash.com/photo-1600210492486-724fe5384259?auto=format&fit=crop&w=600',
-      'https://images.unsplash.com/photo-1581578021424-eb98b87c2c65?auto=format&fit=crop&w=600',
+      'https://images.pexels.com/photos/1350789/pexels-photo-1350789.jpeg?auto=compress&cs=tinysrgb&w=600',
+      'https://images.pexels.com/photos/2724749/pexels-photo-2724749.jpeg?auto=compress&cs=tinysrgb&w=600',
     ],
     likes: 167,
     comments: 31,
@@ -91,7 +102,7 @@ const MOCK_FEED_POSTS = [
     saves: 89,
     createdAt: '2025-10-25',
     completionTime: '4 days',
-    price: 'R 3,200',
+    price: 'ZAR 3,200',
     verified: true,
     tags: ['tiling', 'bathroom', 'waterproofing'],
   },
@@ -110,6 +121,12 @@ export default function FeedPage() {
 
   const categories = ['All', 'Electricians', 'Gardeners', 'Painters', 'Tilers', 'Plumbers'];
 
+  const getSubscriptionTier = (workerId: string): number => {
+    const tier = WORKER_SUBSCRIPTIONS[workerId] || 'basic';
+    const tierRanking = { 'elite': 3, 'premium': 2, 'basic': 1 };
+    return tierRanking[tier];
+  };
+
   const filteredPosts = MOCK_FEED_POSTS.filter(post => {
     const matchesCategory = selectedCategory === 'All' || post.category === selectedCategory;
     const matchesSearch = post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -117,6 +134,11 @@ export default function FeedPage() {
                           post.description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   }).sort((a, b) => {
+    // Primary sort: by subscription tier (higher tier first)
+    const tierDiff = getSubscriptionTier(b.workerId) - getSubscriptionTier(a.workerId);
+    if (tierDiff !== 0) return tierDiff;
+    
+    // Secondary sort: by selected sort criteria
     if (sortBy === 'trending') return b.views - a.views;
     if (sortBy === 'top-rated') return b.likes - a.likes;
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -225,7 +247,7 @@ export default function FeedPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search projects, workers..."
+                placeholder="Search Individuals/ Companies..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
@@ -312,11 +334,14 @@ export default function FeedPage() {
                 <Link key={post.id} href={`/profile/${post.worker.id}`}>
                   <div className="group h-full bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 border border-gray-200 dark:border-gray-700 cursor-pointer">
                     {/* Image Section with Gallery */}
-                    <div className="relative h-64 bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                    <div className="relative h-64 bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-700 dark:to-gray-600 overflow-hidden flex items-center justify-center">
                       <img
                         src={post.images[currentIdx]}
                         alt={post.title}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://via.placeholder.com/600x400?text=${encodeURIComponent(post.title)}`;
+                        }}
                       />
 
                       {/* Image Counter */}
@@ -346,11 +371,17 @@ export default function FeedPage() {
                         </>
                       )}
 
-                      {/* Verified Badge */}
+                      {/* Verified Badge with Subscription Tier Color */}
                       {post.verified && (
-                        <div className="absolute top-3 left-3 bg-green-500 px-2 py-1 rounded-full text-white text-xs font-medium flex items-center gap-1">
+                        <div className={`absolute top-3 left-3 px-2 py-1 rounded-full text-white text-xs font-medium flex items-center gap-1 ${
+                          WORKER_SUBSCRIPTIONS[post.workerId] === 'elite' ? 'bg-green-500' :
+                          WORKER_SUBSCRIPTIONS[post.workerId] === 'premium' ? 'bg-blue-500' :
+                          'bg-orange-500'
+                        }`}>
                           <CheckCircle className="w-3 h-3" />
-                          Verified
+                          {WORKER_SUBSCRIPTIONS[post.workerId] === 'elite' ? 'Verified Elite' :
+                           WORKER_SUBSCRIPTIONS[post.workerId] === 'premium' ? 'Verified Pro' :
+                           'Verified'}
                         </div>
                       )}
 
@@ -419,7 +450,7 @@ export default function FeedPage() {
                         </div>
                         <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-800/30 p-2 rounded-lg">
                           <div className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                            <DollarSign className="w-3 h-3" />
+                            <Banknote className="w-3 h-3" />
                             Cost
                           </div>
                           <p className="text-sm font-bold text-gray-900 dark:text-white">{post.price}</p>

@@ -46,8 +46,8 @@ export default function PublicProfilePage() {
       hourly_rate: 350,
       average_rating: 4.8,
       portfolio: [
-        'https://images.unsplash.com/photo-1581578021424-eb98b87c2c65?auto=format&fit=crop&w=600',
-        'https://images.unsplash.com/photo-1600210492486-724fe5384259?auto=format&fit=crop&w=600',
+        'https://images.pexels.com/photos/5632399/pexels-photo-5632399.jpeg?auto=compress&cs=tinysrgb&w=600',
+        'https://images.pexels.com/photos/1350789/pexels-photo-1350789.jpeg?auto=compress&cs=tinysrgb&w=600',
       ],
       reviews_count: 24,
     },
@@ -62,7 +62,7 @@ export default function PublicProfilePage() {
       hourly_rate: 300,
       average_rating: 4.6,
       portfolio: [
-        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600',
+        'https://images.pexels.com/photos/2724749/pexels-photo-2724749.jpeg?auto=compress&cs=tinysrgb&w=600',
       ],
       reviews_count: 18,
     },
@@ -77,8 +77,8 @@ export default function PublicProfilePage() {
       hourly_rate: 280,
       average_rating: 4.9,
       portfolio: [
-        'https://images.unsplash.com/photo-1581578021424-eb98b87c2c65?auto=format&fit=crop&w=600',
-        'https://images.unsplash.com/photo-1600210492486-724fe5384259?auto=format&fit=crop&w=600',
+        'https://images.pexels.com/photos/5632399/pexels-photo-5632399.jpeg?auto=compress&cs=tinysrgb&w=600',
+        'https://images.pexels.com/photos/1350789/pexels-photo-1350789.jpeg?auto=compress&cs=tinysrgb&w=600',
       ],
       reviews_count: 32,
     },
