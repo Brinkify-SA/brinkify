@@ -8,7 +8,7 @@ import { ModeToggle } from '@/components/mode-toggle';
 import { 
   Heart, MessageCircle, MapPin, User, Search, Filter, Share2, 
   Star, Award, TrendingUp, Bookmark, Eye, Download, ChevronLeft, 
-  ChevronRight, Zap, Clock, DollarSign, CheckCircle 
+  ChevronRight, Zap, Clock, DollarSign, CheckCircle, X
 } from 'lucide-react';
 
 // 🔒 Mock feed posts (like Instagram for trades)
@@ -103,10 +103,22 @@ export default function ExplorePage() {
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [savedPosts, setSavedPosts] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'recent' | 'trending' | 'top-rated'>('recent');
+  const [localFeedPosts, setLocalFeedPosts] = useState<any[]>([]);
 
   const categories = ['All', 'Electricians', 'Gardeners', 'Painters', 'Tilers', 'Plumbers'];
 
-  const filteredPosts = MOCK_FEED_POSTS.filter(post => {
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('feedPosts');
+      if (stored) setLocalFeedPosts(JSON.parse(stored));
+    } catch (e) {
+      console.warn('Invalid feedPosts in localStorage');
+    }
+  }, []);
+
+  const allPosts = [...localFeedPosts, ...MOCK_FEED_POSTS];
+
+  const filteredPosts = allPosts.filter(post => {
     const matchesCategory = selectedCategory === 'All' || post.category === selectedCategory;
     const matchesSearch = post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           post.worker.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -148,6 +160,23 @@ export default function ExplorePage() {
       ...prev,
       [postId]: ((prev[postId] || 0) - 1 + (MOCK_FEED_POSTS.find(p => p.id === postId)?.images.length || 1)) % (MOCK_FEED_POSTS.find(p => p.id === postId)?.images.length || 1)
     }));
+  };
+
+  const deletePost = (postId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const raw = localStorage.getItem('feedPosts');
+      let feed: any[] = [];
+      if (raw) {
+        try { feed = JSON.parse(raw); } catch { feed = []; }
+      }
+      const remaining = feed.filter(p => p.id !== postId);
+      localStorage.setItem('feedPosts', JSON.stringify(remaining));
+      setLocalFeedPosts(remaining);
+    } catch (err) {
+      console.warn('Failed to delete post', err);
+    }
   };
 
   const openPrivacy = () => window.open('https://brinkifysa.co.za/privacy', '_blank');
@@ -219,24 +248,29 @@ export default function ExplorePage() {
       {/* FEED */}
       <main className="flex-grow py-8 px-4">
         <div className="max-w-4xl mx-auto space-y-8">
-          {MOCK_FEED_POSTS.map((post) => (
-            <div
-              key={post.id}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-md overflow-hidden border border-gray-200 dark:border-gray-700"
-            >
+          {filteredPosts.map((post) => {
+            const images: string[] = Array.isArray(post.images) ? post.images : [];
+            const workerObj = post.worker ?? { id: post.workerId ?? 'unknown', name: post.workerName ?? 'Worker', avatar: post.worker?.avatar ?? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(post.workerName ?? 'W')}`, rating: post.worker?.rating ?? 0 };
+            const canManage = post.isLocal && post.createdByEmail && post.createdByEmail === localStorage.getItem('userEmail');
+
+            return (
+              <div
+                key={post.id}
+                className="bg-white dark:bg-gray-800 rounded-2xl shadow-md overflow-hidden border border-gray-200 dark:border-gray-700"
+              >
               {/* Worker Header */}
               <div className="p-4 flex items-center gap-3 border-b border-gray-100 dark:border-gray-700">
-                <Link href={`/profile/${post.worker.id}`}>
+                <Link href={`/profile/${workerObj.id}`}>
                   <img
-                    src={post.worker.avatar}
-                    alt={post.worker.name}
+                    src={workerObj.avatar}
+                    alt={workerObj.name}
                     className="w-10 h-10 rounded-full hover:opacity-80 cursor-pointer transition"
                   />
                 </Link>
                 <div>
-                  <Link href={`/profile/${post.worker.id}`}>
+                  <Link href={`/profile/${workerObj.id}`}>
                     <h3 className="font-bold text-gray-800 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition">
-                      {post.worker.name}
+                      {workerObj.name}
                     </h3>
                   </Link>
                   <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
@@ -247,6 +281,26 @@ export default function ExplorePage() {
                 <span className="ml-auto px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs rounded-full">
                   {post.category}
                 </span>
+                {canManage && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const raw = localStorage.getItem('feedPosts');
+                      let feed = [] as any[];
+                      if (raw) {
+                        try { feed = JSON.parse(raw); } catch { feed = []; }
+                      }
+                      const remaining = feed.filter(p => p.id !== post.id);
+                      localStorage.setItem('feedPosts', JSON.stringify(remaining));
+                      setLocalFeedPosts(remaining);
+                    }}
+                    title="Delete post"
+                    className="ml-3 text-gray-400 hover:text-red-500 transition"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                )}
               </div>
 
               {/* Post Content */}
@@ -256,7 +310,7 @@ export default function ExplorePage() {
 
                 {/* Images */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
-                  {post.images.map((img, i) => (
+                  {images.map((img, i) => (
                     <div key={i} className="aspect-square overflow-hidden rounded-lg">
                       <img
                         src={img}
@@ -281,7 +335,8 @@ export default function ExplorePage() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
 
           {/* CTA */}
           <div className="text-center mt-12">

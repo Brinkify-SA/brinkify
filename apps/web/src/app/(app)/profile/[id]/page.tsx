@@ -119,9 +119,80 @@ export default function PublicProfilePage() {
 
   const handleBack = () => router.back();
   const handleContact = () => {
-    if (worker) {
-      router.push(`/messages/${worker.id}`); // Navigate to a specific conversation with the worker
+    if (!worker) return;
+
+    const userEmail = localStorage.getItem('userEmail');
+    if (!userEmail) {
+      alert('Please log in to contact a worker');
+      router.push('/auth/login');
+      return;
     }
+
+    // Create a conversation id and initial message
+    const convId = `conv-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const initialMsg = `Hi ${worker.full_name}, I'm interested in your services. Can we discuss availability and pricing?`;
+
+    interface HelpRequestConversation {
+      id: string;
+      created_at: string;
+      requester_email: string;
+      responder_email: string;
+      help_request_id: string;
+      help_request_title: string;
+      last_message_text?: string;
+    }
+
+    interface Message {
+      id: string;
+      created_at: string;
+      conversation_id: string;
+      sender_email: string;
+      text: string;
+    }
+
+    const newConversation: HelpRequestConversation = {
+      id: convId,
+      created_at: new Date().toISOString(),
+      requester_email: userEmail,
+      responder_email: worker.id,
+      help_request_id: worker.id,
+      help_request_title: worker.full_name,
+      last_message_text: initialMsg,
+    };
+
+    const newMsg: Message = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      created_at: new Date().toISOString(),
+      conversation_id: convId,
+      sender_email: userEmail,
+      text: initialMsg,
+    };
+
+    // Load existing conversations/messages from localStorage
+    try {
+      const rawConvs = localStorage.getItem('conversations');
+      let conversations: HelpRequestConversation[] = [];
+      if (rawConvs) {
+        try { conversations = JSON.parse(rawConvs); } catch { conversations = []; }
+      }
+
+      const rawMsgs = localStorage.getItem('help_request_messages');
+      let messages: Message[] = [];
+      if (rawMsgs) {
+        try { messages = JSON.parse(rawMsgs); } catch { messages = []; }
+      }
+
+      conversations.push(newConversation);
+      messages.push(newMsg);
+
+      localStorage.setItem('conversations', JSON.stringify(conversations));
+      localStorage.setItem('help_request_messages', JSON.stringify(messages));
+    } catch (err) {
+      console.warn('Failed to save conversation to localStorage', err);
+    }
+
+    // Navigate to the messages page for this conversation
+    router.push(`/messages/${convId}`);
   };
 
   if (loading) {

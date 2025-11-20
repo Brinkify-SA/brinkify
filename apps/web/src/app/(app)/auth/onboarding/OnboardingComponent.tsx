@@ -4,8 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
 import { User, Mail, MapPin, Camera, Briefcase, Home, Building, Tag, CreditCard } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
-import Loader from '@/components/loader'; // Assuming a Loader component exists
 
 interface OnboardingFormData {
   id: string;
@@ -49,48 +47,27 @@ export default function OnboardingComponent() {
     company_name: '',
   });
   const [newSkill, setNewSkill] = useState('');
-  const [loading, setLoading] = useState(true); // Set to true initially for auth check
+  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
-  const supabase = createClient();
 
   useEffect(() => {
-    const initializeOnboarding = async () => {
-      setLoading(true);
-      setMessage(null);
-      try {
-        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+    const roleParam = searchParams.get('role');
+    const userRole = ['worker', 'customer', 'company'].includes(roleParam || '')
+      ? (roleParam as 'worker' | 'customer' | 'company')
+      : 'company';
 
-        if (authError || !authUser) {
-          router.push('/auth/login');
-          return;
-        }
-
-        const roleParam = searchParams.get('role');
-        const userRole = ['worker', 'customer', 'company'].includes(roleParam || '')
-          ? (roleParam as 'worker' | 'customer' | 'company')
-          : 'company'; // Default to company if role is not specified or invalid
+    const userEmail = localStorage.getItem('userEmail') || `user-${Date.now()}@brinkify.local`;
+    const userId = localStorage.getItem('userId') || `user-${Math.random().toString(36).substring(7)}`;
 
     setRole(userRole);
     setFormData((prev: OnboardingFormData) => ({
       ...prev,
-      id: authUser.id,
-      email: authUser.email || '',
-      full_name: authUser.user_metadata?.full_name || '', // Pre-fill full_name if available from auth
-      avatar_url: authUser.user_metadata?.avatar_url || '', // Pre-fill avatar if available
+      id: userId,
+      email: userEmail,
       role: userRole,
     }));
-      } catch (err: any) {
-        console.error('Error initializing onboarding:', err);
-        setMessage({ type: 'error', text: err.message || 'Failed to initialize onboarding.' });
-        router.push('/auth/login');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initializeOnboarding();
-  }, [searchParams, router, supabase]);
+  }, [searchParams]);
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
@@ -98,79 +75,50 @@ export default function OnboardingComponent() {
     router.push(path as any);
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length + (formData.portfolio?.length || 0) > 6) {
       setMessage({ type: 'error', text: 'You can upload up to 6 portfolio images.' });
       return;
     }
 
-    setLoading(true);
     try {
-      const uploadedUrls: string[] = [];
+      let processedCount = 0;
       for (const file of files) {
         if (file.size > 5 * 1024 * 1024) {
           setMessage({ type: 'error', text: `Image ${file.name} must be less than 5MB.` });
-          setLoading(false);
           return;
         }
 
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${formData.id}-${Math.random()}.${fileExt}`;
-        const filePath = `portfolio/${fileName}`; // Assuming a 'portfolio' bucket
-
-        const { error: uploadError } = await supabase.storage
-          .from('portfolio')
-          .upload(filePath, file);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage.from('portfolio').getPublicUrl(filePath);
-        uploadedUrls.push(publicUrl);
+        // Create data URL for local storage
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const dataUrl = event.target?.result as string;
+          setPreviewImages((prev) => [...prev, dataUrl]);
+          setFormData((prev) => ({
+            ...prev,
+            portfolio: [...(prev.portfolio || []), dataUrl],
+          }));
+          processedCount++;
+          if (processedCount === files.length) {
+            setMessage({ type: 'success', text: 'Images added successfully!' });
+          }
+        };
+        reader.readAsDataURL(file);
       }
-
-      setPreviewImages((prev) => [...prev, ...uploadedUrls]);
-      setFormData((prev) => ({
-        ...prev,
-        portfolio: [...(prev.portfolio || []), ...uploadedUrls],
-      }));
-      setMessage({ type: 'success', text: 'Images uploaded successfully!' });
     } catch (error: any) {
-      console.error('Error uploading images:', error);
-      setMessage({ type: 'error', text: error.message || 'Failed to upload images.' });
-    } finally {
-      setLoading(false);
+      console.error('Error processing images:', error);
+      setMessage({ type: 'error', text: 'Failed to process images.' });
     }
   };
 
-  const removeImage = async (index: number) => {
-    const imageUrlToRemove = previewImages[index];
-    if (!imageUrlToRemove) return;
-
-    setLoading(true);
-    try {
-      // Extract file path from public URL
-      const urlParts = imageUrlToRemove.split('/');
-      const filePath = `portfolio/${urlParts[urlParts.length - 1]}`; // Assuming 'portfolio' bucket
-
-      const { error: deleteError } = await supabase.storage
-        .from('portfolio')
-        .remove([filePath]);
-
-      if (deleteError) throw deleteError;
-
-      setPreviewImages((prev: string[]) => prev.filter((_, i) => i !== index));
-      setFormData((prev: OnboardingFormData) => ({
-        ...prev,
-        portfolio: (prev.portfolio || []).filter((_, i) => i !== index),
-      }));
-      setMessage({ type: 'success', text: 'Image removed successfully!' });
-    } catch (error: any) {
-      console.error('Error removing image:', error);
-      setMessage({ type: 'error', text: error.message || 'Failed to remove image.' });
-    } finally {
-      setLoading(false);
-    }
+  const removeImage = (index: number) => {
+    setPreviewImages((prev: string[]) => prev.filter((_, i) => i !== index));
+    setFormData((prev: OnboardingFormData) => ({
+      ...prev,
+      portfolio: (prev.portfolio || []).filter((_, i) => i !== index),
+    }));
+    setMessage({ type: 'success', text: 'Image removed successfully!' });
   };
 
   const handleAddSkill = () => {
@@ -184,88 +132,50 @@ export default function OnboardingComponent() {
     setFormData((prev: OnboardingFormData) => ({ ...prev, skills: (prev.skills || []).filter((s) => s !== skill) }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setMessage(null);
-
-    if (!formData.id) {
-      setMessage({ type: 'error', text: 'User ID is missing. Please log in again.' });
-      setLoading(false);
-      return;
-    }
 
     // Validation
     if (!formData.full_name.trim() || !formData.location.trim()) {
       setMessage({ type: 'error', text: 'Please fill in all required fields.' });
-      setLoading(false);
       return;
     }
 
     if (role === 'worker') {
       if ((formData.portfolio?.length || 0) < 3) {
         setMessage({ type: 'error', text: 'Please upload at least 3 portfolio images.' });
-        setLoading(false);
         return;
       }
       if (!formData.bank_name || !formData.account_number || !formData.id_number) {
         setMessage({ type: 'error', text: 'Banking and ID details are required for workers.' });
-        setLoading(false);
         return;
       }
     }
 
     if (role === 'company' && !formData.company_name?.trim()) {
       setMessage({ type: 'error', text: 'Company Name is required for companies.' });
-      setLoading(false);
       return;
     }
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: formData.full_name, // Changed from name to full_name
-          role: formData.role,
-          location: formData.location,
-          avatar_url: formData.avatar_url,
-          skills: formData.skills,
-          bio: formData.bio,
-          hourly_rate: formData.hourly_rate,
-          portfolio: formData.portfolio,
-          bank_name: formData.bank_name,
-          account_number: formData.account_number,
-          branch_code: formData.branch_code,
-          id_number: formData.id_number,
-          company_name: formData.company_name,
-        })
-        .eq('id', formData.id);
-
-      if (error) {
-        throw error;
-      }
+      // Save profile to localStorage
+      localStorage.setItem(`profile_${formData.id}`, JSON.stringify(formData));
+      localStorage.setItem('userEmail', formData.email);
+      localStorage.setItem('userId', formData.id);
 
       setMessage({ type: 'success', text: 'Onboarding complete! Redirecting to dashboard...' });
-      router.push('/dashboard');
+      setTimeout(() => router.push('/dashboard'), 1500);
     } catch (err: any) {
       console.error('Error completing onboarding:', err);
-      setMessage({ type: 'error', text: err.message || 'Failed to complete onboarding. Please try again.' });
-    } finally {
-      setLoading(false);
+      setMessage({ type: 'error', text: 'Failed to complete onboarding. Please try again.' });
     }
   };
-
-  if (loading) {
-    return <Loader />;
-  }
 
   if (!role) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <p className="text-red-600 dark:text-red-400">Error: Role not determined. Please try again.</p>
-        <button onClick={() => router.push('/auth/login')} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
-          Go to Login
-        </button>
+        <p className="text-red-600 dark:text-red-400">Loading profile setup...</p>
       </div>
     );
   }
