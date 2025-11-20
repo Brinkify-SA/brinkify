@@ -56,6 +56,8 @@ export default function CompanyTeamPage() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [team, setTeam] = useState(MOCK_TEAM);
+  const [selectedMember, setSelectedMember] = useState<typeof MOCK_TEAM[0] | null>(null);
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
@@ -71,10 +73,18 @@ export default function CompanyTeamPage() {
     router.push('/dashboard');
   };
 
-  const filteredTeam = MOCK_TEAM.filter((member) =>
+  const filteredTeam = team.filter((member) =>
     member.name.toLowerCase().includes(search.toLowerCase()) ||
     member.role.toLowerCase().includes(search.toLowerCase())
   );
+
+  const handleInviteWorker = () => {
+    router.push('/company/invite' as any);
+  };
+
+  const handleRemoveMember = (id: string) => {
+    setTeam(team.filter(m => m.id !== id));
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors">
@@ -121,7 +131,7 @@ export default function CompanyTeamPage() {
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Team Management</h1>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2">
+          <button onClick={handleInviteWorker} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2">
             <Plus className="w-4 h-4" /> Invite Worker
           </button>
         </div>
@@ -185,14 +195,67 @@ export default function CompanyTeamPage() {
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <button className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium">View Profile</button>
-                  <button className="text-gray-600 dark:text-gray-400 hover:underline text-sm font-medium">Remove</button>
+                  <button onClick={() => setSelectedMember(member)} className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium">View Profile</button>
+                  <button onClick={() => handleRemoveMember(member.id)} className="text-gray-600 dark:text-gray-400 hover:underline text-sm font-medium">Remove</button>
                 </div>
               </div>
             </div>
           ))}
         </div>
       </main>
+
+      {/* Member Profile Modal */}
+      {selectedMember && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedMember.name}</h2>
+                <button onClick={() => setSelectedMember(null)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <img src={selectedMember.avatar} alt={selectedMember.name} className="w-24 h-24 rounded-full mb-4" />
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Role</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{selectedMember.role}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Email</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{selectedMember.email}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Location</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{selectedMember.location}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Rating</p>
+                  <p className="font-medium text-gray-900 dark:text-white flex items-center gap-1">
+                    <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" /> {selectedMember.rating} ({selectedMember.jobsCompleted} jobs)
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Status</p>
+                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                    selectedMember.status === 'active'
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                  }`}>
+                    {selectedMember.status === 'active' ? 'Active' : 'Pending'}
+                  </span>
+                </div>
+              </div>
+              <button onClick={() => setSelectedMember(null)} className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
 
       {/* Footer */}
       <footer className="bg-white dark:bg-gray-950 border-t dark:border-gray-800 py-6 text-center">

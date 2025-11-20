@@ -2,10 +2,10 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+// Link removed — navigation uses router.push
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
-import { Briefcase, MapPin, Clock, User, CheckCircle, Star, Plus, Search } from 'lucide-react';
+import { Briefcase, MapPin, Clock, User, Star, Plus, Search } from 'lucide-react';
 
 const MOCK_COMPANY = {
   id: 'comp_001',
@@ -62,6 +62,15 @@ export default function CompanyProjectsPage() {
   const navigate = (path: string) => {
     setMenuOpen(false);
     router.push(path as any);
+  };
+
+  const handleNewProject = () => {
+    setMenuOpen(false);
+    router.push('/company/projects/new' as any);
+  };
+
+  const handleViewDetails = (id: string) => {
+    router.push(`/company/projects/${id}` as any);
   };
 
   const handleLogout = () => {
@@ -135,7 +144,7 @@ export default function CompanyProjectsPage() {
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Project Management</h1>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2">
+          <button onClick={handleNewProject} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2">
             <Plus className="w-4 h-4" /> New Project
           </button>
         </div>
@@ -195,7 +204,7 @@ export default function CompanyProjectsPage() {
                       <span className="text-sm">{project.rating}</span>
                     </div>
                   )}
-                  <button className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium">View Details</button>
+                  <button onClick={() => handleViewDetails(project.id)} className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium">View Details</button>
                 </div>
               </div>
             </div>

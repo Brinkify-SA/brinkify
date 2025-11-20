@@ -5,8 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
-import { Home, Briefcase, MapPin, Clock, Star, User, Calendar, ArrowLeft } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { Home, Briefcase, MapPin, Clock, Star, User, Calendar, ArrowLeft, CheckCircle } from 'lucide-react';
 import Loader from '@/components/loader'; // Assuming a Loader component exists
 
 interface UserProfile {
@@ -18,6 +17,7 @@ interface UserProfile {
 interface Job {
   id: string;
   title: string;
+  description?: string;
   location: string;
   min_budget?: number;
   max_budget?: number;
@@ -38,110 +38,77 @@ export default function MyJobsPage() {
   const [jobHistory, setJobHistory] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
 
   useEffect(() => {
-    const fetchUserDataAndJobs = async () => {
+    const fetchUserDataAndJobs = () => {
       setLoading(true);
       setError(null);
+
       try {
-        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        // Mock users (use localStorage.userEmail to pick)
+        const mockUsers: { [key: string]: UserProfile } = {
+          'homeowner@test.com': { id: '1', full_name: 'John Homeowner', role: 'customer' },
+          'worker@test.com': { id: '2', full_name: 'Sarah Worker', role: 'worker' },
+        };
 
-        if (authError || !authUser) {
-          router.push('/auth/login');
-          return;
-        }
-
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, full_name, role')
-          .eq('id', authUser.id)
-          .single();
-
-        if (profileError) {
-          throw profileError;
-        }
-
+        const storedEmail = localStorage.getItem('userEmail') || 'homeowner@test.com';
+        const profile = mockUsers[storedEmail] || mockUsers['homeowner@test.com'];
         setUser(profile as UserProfile);
 
-        let currentJobsData: Job[] = [];
-        let historyJobsData: Job[] = [];
+        // Seed some jobs locally (will be merged with persisted `myJobs` key)
+        const seedCurrent: Job[] = [
+          { id: 'job-2', title: 'Bathroom Tiling', location: 'Johannesburg, SA', min_budget: 4500, max_budget: 9000, created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), status: 'in-progress', customer_id: '9', worker_id: '2', profiles_customer: [{ full_name: 'Robert Taylor' }] },
+          { id: 'job-3', title: 'Electrical Wiring Installation', location: 'Cape Town, SA', min_budget: 6000, max_budget: 10000, created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), status: 'assigned', customer_id: '4', worker_id: undefined, profiles_customer: [{ full_name: 'Jane Smith' }] },
+        ];
 
-        if (profile.role === 'worker') {
-          // Fetch worker's current jobs
-          const { data: workerCurrentJobs, error: workerCurrentError } = await supabase
-            .from('jobs')
-            .select(`
-              *,
-              profiles_customer:customer_id (full_name)
-            `)
-            .eq('worker_id', profile.id)
-            .in('status', ['assigned', 'in-progress'])
-            .order('created_at', { ascending: false });
+        const seedHistory: Job[] = [
+          { id: 'job-1', title: 'Kitchen Renovation', location: 'Cape Town, SA', min_budget: 15000, max_budget: 22000, created_at: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(), status: 'completed', customer_id: '1', worker_id: '2', profiles_customer: [{ full_name: 'John Homeowner' }], reviews: [{ rating: 4.8 }] },
+        ];
 
-          if (workerCurrentError) throw workerCurrentError;
-          currentJobsData = workerCurrentJobs as Job[];
-
-          // Fetch worker's job history
-          const { data: workerHistoryJobs, error: workerHistoryError } = await supabase
-            .from('jobs')
-            .select(`
-              *,
-              profiles_customer:customer_id (full_name),
-              reviews (rating)
-            `)
-            .eq('worker_id', profile.id)
-            .eq('status', 'completed')
-            .order('created_at', { ascending: false });
-
-          if (workerHistoryError) throw workerHistoryError;
-          historyJobsData = workerHistoryJobs as Job[];
-
-        } else if (profile.role === 'customer') {
-          // Fetch customer's current jobs
-          const { data: customerCurrentJobs, error: customerCurrentError } = await supabase
-            .from('jobs')
-            .select(`
-              *,
-              profiles_worker:worker_id (full_name)
-            `)
-            .eq('customer_id', profile.id)
-            .in('status', ['assigned', 'in-progress'])
-            .order('created_at', { ascending: false });
-
-          if (customerCurrentError) throw customerCurrentError;
-          currentJobsData = customerCurrentJobs as Job[];
-
-          // Fetch customer's job history
-          const { data: customerHistoryJobs, error: customerHistoryError } = await supabase
-            .from('jobs')
-            .select(`
-              *,
-              profiles_worker:worker_id (full_name),
-              reviews (rating)
-            `)
-            .eq('customer_id', profile.id)
-            .eq('status', 'completed')
-            .order('created_at', { ascending: false });
-
-          if (customerHistoryError) throw customerHistoryError;
-          historyJobsData = customerHistoryJobs as Job[];
+        // Load persisted jobs (if any)
+        const raw = localStorage.getItem('myJobs');
+        let persisted: Job[] = [];
+        if (raw) {
+          try { persisted = JSON.parse(raw); } catch { persisted = []; }
         }
 
-        setCurrentJobs(currentJobsData);
-        setJobHistory(historyJobsData);
+        // Merge persisted into seeds
+        const mergedCurrent = [...seedCurrent];
+        const mergedHistory = [...seedHistory];
+        persisted.forEach(p => {
+          const curIdx = mergedCurrent.findIndex(m => m.id === p.id);
+          const histIdx = mergedHistory.findIndex(m => m.id === p.id);
+          if (curIdx >= 0) mergedCurrent[curIdx] = p;
+          else if (histIdx >= 0) mergedHistory[histIdx] = p;
+          else {
+            // place based on status
+            if (p.status === 'completed') mergedHistory.unshift(p);
+            else mergedCurrent.unshift(p);
+          }
+        });
+
+        if (profile.role === 'worker') {
+          const currentJobsData = mergedCurrent.filter(j => j.worker_id === profile.id || (j.profiles_worker || []).some(w => w.full_name === profile.full_name));
+          const historyJobsData = mergedHistory.filter(j => j.worker_id === profile.id || (j.profiles_worker || []).some(w => w.full_name === profile.full_name));
+          setCurrentJobs(currentJobsData);
+          setJobHistory(historyJobsData);
+        } else {
+          const currentJobsData = mergedCurrent.filter(j => j.customer_id === profile.id);
+          const historyJobsData = mergedHistory.filter(j => j.customer_id === profile.id);
+          setCurrentJobs(currentJobsData);
+          setJobHistory(historyJobsData);
+        }
 
       } catch (err: any) {
-        console.error('Error fetching data:', err);
+        console.error('Error loading jobs:', err);
         setError(err.message || 'Failed to load jobs.');
-        router.push('/auth/login');
       } finally {
         setLoading(false);
       }
     };
 
     fetchUserDataAndJobs();
-  }, [router, supabase]);
+  }, [router]);
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
@@ -149,9 +116,71 @@ export default function MyJobsPage() {
     router.push(path as any);
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
+  const handleLogout = () => {
+    localStorage.removeItem('userEmail');
     router.push('/auth/login');
+  };
+
+  const markFinishedAndPost = (jobId: string) => {
+    if (!user) return;
+
+    // update state
+    const updatedCurrent = currentJobs.map(j => j.id === jobId ? { ...j, status: 'completed' } : j);
+    setCurrentJobs(updatedCurrent.filter(j => j.status !== 'completed') as Job[]);
+
+    const finishedJob = currentJobs.find(j => j.id === jobId);
+    if (!finishedJob) return;
+
+    // persist in myJobs
+    const raw = localStorage.getItem('myJobs');
+    let persisted: Job[] = [];
+    if (raw) {
+      try { persisted = JSON.parse(raw); } catch { persisted = []; }
+    }
+    const updatedJob = { ...finishedJob, status: 'completed', worker_id: user.id } as Job;
+    const idx = persisted.findIndex(p => p.id === jobId);
+    if (idx >= 0) persisted[idx] = updatedJob; else persisted.unshift(updatedJob);
+    localStorage.setItem('myJobs', JSON.stringify(persisted));
+
+    // add to jobHistory state
+    setJobHistory(prev => [updatedJob, ...prev]);
+
+    // create a feed post
+    const rawFeed = localStorage.getItem('feedPosts');
+    let feed: any[] = [];
+    if (rawFeed) {
+      try { feed = JSON.parse(rawFeed); } catch { feed = []; }
+    }
+
+    const newPost = {
+      id: `post-${Date.now()}-${Math.random().toString(36).slice(2,9)}`,
+      workerId: user.id,
+      worker: { id: user.id, name: user.full_name, avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=4F46E5&color=fff`, rating: 4.8, reviews: 0 },
+      title: `Finished: ${finishedJob.title}`,
+      category: finishedJob.title,
+      location: finishedJob.location,
+      description: `Completed job for ${finishedJob.profiles_customer?.[0]?.full_name || 'client'}. ${finishedJob.description}`,
+      images: [],
+      likes: 0,
+      comments: 0,
+      views: 0,
+      saves: 0,
+      createdAt: new Date().toISOString(),
+      completionTime: '—',
+      price: finishedJob.max_budget ? `ZAR ${finishedJob.max_budget}` : undefined,
+      verified: true,
+      // metadata for client-side management
+      createdByEmail: localStorage.getItem('userEmail') || null,
+      isLocal: true,
+    };
+
+    feed.unshift(newPost);
+    localStorage.setItem('feedPosts', JSON.stringify(feed));
+
+    // quick feedback
+    setError(null);
+    alert('Marked finished and posted to Feed');
+    router.push('/feed');
   };
 
   const handleBack = () => {
@@ -272,6 +301,7 @@ export default function MyJobsPage() {
                   type="current"
                   isWorker={isWorker}
                   onViewDetails={() => router.push(`/jobs/${job.id}`)}
+                  onMarkFinished={() => markFinishedAndPost(job.id)}
                 />
               ))}
             </div>
@@ -332,11 +362,13 @@ function JobCard({
   type,
   isWorker,
   onViewDetails,
+  onMarkFinished,
 }: {
   job: Job;
   type: 'current' | 'history';
   isWorker: boolean;
   onViewDetails: () => void;
+  onMarkFinished?: () => void;
 }) {
   const getStatusChip = (status: string) => {
     switch (status) {
@@ -404,12 +436,23 @@ function JobCard({
 
       <div className="mt-4 flex justify-between items-center">
         <span className="font-bold text-gray-800 dark:text-white">{displayBudget(job)}</span>
-        <button
-          onClick={onViewDetails}
-          className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium"
-        >
-          View Details
-        </button>
+        <div className="flex items-center gap-3">
+          {type === 'current' && isWorker && onMarkFinished && (
+            <button
+              onClick={onMarkFinished}
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium"
+            >
+              <CheckCircle className="w-4 h-4" />
+              Mark Finished & Post
+            </button>
+          )}
+          <button
+            onClick={onViewDetails}
+            className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium"
+          >
+            View Details
+          </button>
+        </div>
       </div>
     </div>
   );
