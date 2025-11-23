@@ -1,23 +1,32 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { ModeToggle } from '@/components/mode-toggle';
-import { Eye, EyeOff, User, Mail, Lock, Home, Briefcase, Building2 } from 'lucide-react';
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ModeToggle } from "@/components/mode-toggle";
+import {
+  Eye,
+  EyeOff,
+  User,
+  Mail,
+  Lock,
+  Home,
+  Briefcase,
+  Building2,
+} from "lucide-react";
 
 export default function SignUpPage() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'customer', // 'customer', 'worker', or 'company'
+    name: "",
+    email: "",
+    password: "",
+    role: "customer", // 'customer', 'worker', or 'company'
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
 
@@ -26,7 +35,9 @@ export default function SignUpPage() {
     router.push(path as any);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -34,34 +45,63 @@ export default function SignUpPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const req = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
+        }),
+      });
 
-      if (formData.role === 'worker') {
-        router.push('/auth/onboarding?role=worker' as Parameters<typeof router.push>[0]);
-      } else if (formData.role === 'company') {
-        router.push('/auth/onboarding?role=company' as Parameters<typeof router.push>[0]);
+      if (req.status === 200) {
+        // ✅ Simulate success (no real submission)
+        if (formData.role === "worker") {
+          router.push(
+            "/auth/onboarding?role=worker" as Parameters<typeof router.push>[0]
+          );
+        } else if (formData.role === "company") {
+          router.push(
+            "/auth/onboarding?role=company" as Parameters<typeof router.push>[0]
+          );
+        } else {
+          router.push(
+            "/auth/onboarding?role=customer" as Parameters<
+              typeof router.push
+            >[0]
+          );
+        }
       } else {
-        router.push('/auth/onboarding?role=customer' as Parameters<typeof router.push>[0]);
+        //console.error("Signup failed:");
+        const res = await req.json();
+        setError(res.error);
       }
     } catch (err) {
-      setError('Failed to create account. Please try again.');
+      setError("Failed to create account. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const openPrivacy = () => window.open('https://brinkifysa.co.za/privacy', '_blank');
-  const openTerms = () => window.open('https://brinkifysa.co.za/terms', '_blank');
+  const openPrivacy = () =>
+    window.open("https://brinkifysa.co.za/privacy", "_blank");
+  const openTerms = () =>
+    window.open("https://brinkifysa.co.za/terms", "_blank");
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors">
       {/* --- Navbar --- */}
       <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <Link href="/" className="text-xl font-bold text-blue-600 dark:text-blue-400">
+          <Link
+            href="/"
+            className="text-xl font-bold text-blue-600 dark:text-blue-400"
+          >
             Brinkify SA
           </Link>
 
@@ -82,7 +122,12 @@ export default function SignUpPage() {
               viewBox="0 0 24 24"
               stroke="currentColor"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
             </svg>
           </button>
         </div>
@@ -91,9 +136,16 @@ export default function SignUpPage() {
       {/* ✅ Mobile Menu */}
       {menuOpen && (
         <div className="md:hidden fixed inset-0 z-[60]">
-          <div className="absolute inset-0 bg-black/50" onClick={toggleMenu}></div>
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={toggleMenu}
+          ></div>
           <div className="absolute left-0 top-0 h-full w-3/4 bg-blue-600 text-white p-6 pt-16">
-            <button onClick={toggleMenu} className="absolute top-4 right-4 text-white" aria-label="Close menu">
+            <button
+              onClick={toggleMenu}
+              className="absolute top-4 right-4 text-white"
+              aria-label="Close menu"
+            >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-6 w-6"
@@ -101,15 +153,45 @@ export default function SignUpPage() {
                 viewBox="0 0 24 24"
                 stroke="currentColor"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
             <nav className="flex flex-col space-y-4 mt-6">
-              <button onClick={() => navigate('/')} className="text-left text-lg font-medium">Home</button>
-              <button onClick={() => navigate('/explore')} className="text-left text-lg font-medium">Explore</button>
-              <button onClick={() => navigate('/about')} className="text-left text-lg font-medium">About Us</button>
-              <button onClick={() => navigate('/auth/login')} className="text-left text-lg font-medium">Login</button>
-              <button onClick={() => navigate('/auth/signup')} className="text-left text-lg font-medium">Sign Up</button>
+              <button
+                onClick={() => navigate("/")}
+                className="text-left text-lg font-medium"
+              >
+                Home
+              </button>
+              <button
+                onClick={() => navigate("/explore")}
+                className="text-left text-lg font-medium"
+              >
+                Explore
+              </button>
+              <button
+                onClick={() => navigate("/about")}
+                className="text-left text-lg font-medium"
+              >
+                About Us
+              </button>
+              <button
+                onClick={() => navigate("/auth/login")}
+                className="text-left text-lg font-medium"
+              >
+                Login
+              </button>
+              <button
+                onClick={() => navigate("/auth/signup")}
+                className="text-left text-lg font-medium"
+              >
+                Sign Up
+              </button>
             </nav>
           </div>
         </div>
@@ -119,7 +201,9 @@ export default function SignUpPage() {
       <main className="flex-grow flex items-center justify-center px-4 pb-12">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Create Your Account</h2>
+            <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
+              Create Your Account
+            </h2>
             <p className="text-gray-600 dark:text-gray-400">
               Join South Africa’s trusted platform for skilled work
             </p>
@@ -136,11 +220,13 @@ export default function SignUpPage() {
             <div className="grid grid-cols-3 gap-3">
               <button
                 type="button"
-                onClick={() => setFormData((prev) => ({ ...prev, role: 'customer' }))}
+                onClick={() =>
+                  setFormData((prev) => ({ ...prev, role: "customer" }))
+                }
                 className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                  formData.role === 'customer'
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  formData.role === "customer"
+                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                    : "border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
                 }`}
               >
                 <Home size={24} className="mb-2" />
@@ -149,11 +235,13 @@ export default function SignUpPage() {
 
               <button
                 type="button"
-                onClick={() => setFormData((prev) => ({ ...prev, role: 'worker' }))}
+                onClick={() =>
+                  setFormData((prev) => ({ ...prev, role: "worker" }))
+                }
                 className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                  formData.role === 'worker'
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  formData.role === "worker"
+                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                    : "border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
                 }`}
               >
                 <Briefcase size={24} className="mb-2" />
@@ -162,11 +250,13 @@ export default function SignUpPage() {
 
               <button
                 type="button"
-                onClick={() => setFormData((prev) => ({ ...prev, role: 'company' }))}
+                onClick={() =>
+                  setFormData((prev) => ({ ...prev, role: "company" }))
+                }
                 className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
-                  formData.role === 'company'
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  formData.role === "company"
+                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                    : "border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800"
                 }`}
               >
                 <Building2 size={24} className="mb-2" />
@@ -176,7 +266,10 @@ export default function SignUpPage() {
 
             {/* Name */}
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
                 Full Name
               </label>
               <div className="relative">
@@ -196,7 +289,10 @@ export default function SignUpPage() {
 
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
                 Email Address
               </label>
               <div className="relative">
@@ -216,7 +312,10 @@ export default function SignUpPage() {
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
                 Password
               </label>
               <div className="relative">
@@ -224,7 +323,7 @@ export default function SignUpPage() {
                 <input
                   id="password"
                   name="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   value={formData.password}
                   onChange={handleChange}
                   required
@@ -244,7 +343,10 @@ export default function SignUpPage() {
 
             {/* Confirm Password */}
             <div>
-              <label htmlFor="confirm" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label
+                htmlFor="confirm"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
                 Confirm Password
               </label>
               <div className="relative">
@@ -252,7 +354,7 @@ export default function SignUpPage() {
                 <input
                   id="confirm"
                   name="confirm"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   required
                   minLength={6}
                   className="w-full pl-10 pr-12 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
@@ -276,13 +378,24 @@ export default function SignUpPage() {
                 required
                 className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
               />
-              <label htmlFor="terms" className="ml-2 text-sm text-gray-600 dark:text-gray-400">
-                I agree to the{' '}
-                <button type="button" onClick={openTerms} className="text-blue-600 dark:text-blue-400 hover:underline">
+              <label
+                htmlFor="terms"
+                className="ml-2 text-sm text-gray-600 dark:text-gray-400"
+              >
+                I agree to the{" "}
+                <button
+                  type="button"
+                  onClick={openTerms}
+                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                >
                   Terms
-                </button>{' '}
-                and{' '}
-                <button type="button" onClick={openPrivacy} className="text-blue-600 dark:text-blue-400 hover:underline">
+                </button>{" "}
+                and{" "}
+                <button
+                  type="button"
+                  onClick={openPrivacy}
+                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                >
                   Privacy Policy
                 </button>
                 .
@@ -295,18 +408,18 @@ export default function SignUpPage() {
               disabled={loading}
               className={`w-full py-3 px-4 rounded-lg font-semibold text-white transition ${
                 loading
-                  ? 'bg-blue-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg'
+                  ? "bg-blue-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg"
               }`}
             >
-              {loading ? 'Creating Account...' : 'Sign Up'}
+              {loading ? "Creating Account..." : "Sign Up"}
             </button>
           </form>
 
           <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-            Already have an account?{' '}
+            Already have an account?{" "}
             <button
-              onClick={() => navigate('/auth/login')}
+              onClick={() => navigate("/auth/login")}
               className="text-blue-600 dark:text-blue-400 font-medium hover:underline"
             >
               Log In
@@ -318,9 +431,12 @@ export default function SignUpPage() {
       {/* --- Footer --- */}
       <footer className="bg-white dark:bg-gray-950 border-t dark:border-gray-800 py-6 text-center">
         <div className="container mx-auto px-4">
-          <span className="text-lg font-bold text-blue-600 dark:text-blue-400">Brinkify SA</span>
+          <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+            Brinkify SA
+          </span>
           <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm">
-            © {new Date().getFullYear()} Connecting skilled workers, homeowners, and companies across South Africa.
+            © {new Date().getFullYear()} Connecting skilled workers, homeowners,
+            and companies across South Africa.
           </p>
         </div>
       </footer>
