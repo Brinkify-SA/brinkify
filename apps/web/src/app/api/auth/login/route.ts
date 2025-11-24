@@ -24,7 +24,7 @@ export const POST = async (request: Request) => {
         return new Response(JSON.stringify({ error: error.message, user, lcl: "auth" }), { status: 400 });
     }
     
-    const {data: userProfile, error: profileError} = await supabase.from("users").select("*, workers(*), companies(*), customers(*)").eq("id", user.user?.id).single();
+    const {data: userProfile, error: profileError} = await supabase.from("users").select("*, workers(*), companies(*), customers(*), subscriptions(*), trials(*), addresses(*)").eq("id", user.user?.id).single();
     
     if (profileError) {
         return new Response(JSON.stringify({ error: "Unexpected Error occured", lcl: "profile_fetch" }), { status: 400 });
@@ -41,6 +41,6 @@ export const POST = async (request: Request) => {
     }
 
     const encodedProfile = encodeBase64(JSON.stringify(userProfile));
-    (await cookies()).set("app-user", encodedProfile, { httpOnly: true, path: '/' });
+    (await cookies()).set("app-user", encodedProfile, { path: '/' });
     return new Response(JSON.stringify({ message: "User logged in successfully", user: userProfile }), { status: 200 });
 }
