@@ -5,27 +5,13 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ModeToggle } from "@/components/mode-toggle";
-import {
-  Home,
-  Briefcase,
-  MessageSquare,
-  Star,
-  Wallet,
-  Settings,
-  LogOut,
-  User as UserIcon,
-  Building,
-  Users,
-  BarChart3,
-  Zap,
-  Menu,
-  Search,
-} from "lucide-react";
+import { Home, Settings, User as UserIcon, Menu, Search } from "lucide-react";
 import Loader from "@/components/loader"; // Assuming a Loader component exists
 import { WorkerDashboard } from "./WorkerDashboard";
 import { CustomerDashboard } from "./CustomerDashboard";
 import { CompanyDashboard } from "./CompanyDashboard";
 import { getUserFromCookies } from "@/utils/base64Utils";
+import { getAvatarUrl } from "@/lib/avatars";
 
 export interface UserProfile {
   id: string;
@@ -113,7 +99,15 @@ export default function DashboardPage() {
 
         // Get the mock user data for this email
         let mockUser = mockUsers[userEmail] || mockUsers["homeowner@test.com"];
-        mockUser = { ...mockUser, appUser, role: appUser.role };
+        mockUser = {
+          ...mockUser,
+          full_name: appUser.first_name + " " + appUser.last_name,
+          role: appUser.role,
+        };
+        mockUser = {
+          ...mockUser,
+          avatar_url: getAvatarUrl(mockUser.full_name),
+        };
         setUser(mockUser as UserProfile);
       } catch (err: any) {
         console.error("Error loading user profile:", err);
@@ -298,7 +292,7 @@ export default function DashboardPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">
-                Welcome back, {user.appUser.first_name}!
+                Welcome back, {user.full_name}!
               </h1>
               <p className="opacity-90 mt-1">
                 {user.role === "worker"
