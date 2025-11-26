@@ -7,7 +7,7 @@ export const decodeBase64 = (data: string): string => {
 }
 
 //should only be called from the client
-export const getUserFromCookies = async () => {
+export const getUserFromCookies = () => {
 
     if(!document?.cookie) return null;
     let user = document.cookie
