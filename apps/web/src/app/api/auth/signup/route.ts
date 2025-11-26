@@ -1,4 +1,6 @@
+import { encodeBase64 } from "@/utils/base64Utils";
 import { createClient } from "@/utils/supabase/server";
+import { cookies } from "next/headers";
 
 export const POST = async (request: Request) => {
     const supabase = await createClient();
@@ -17,13 +19,13 @@ export const POST = async (request: Request) => {
     if (error) {
         return new Response(JSON.stringify({ error: error.message, lcl: "auth", user }), { status: 400 });
     }
-    console.log("User created:", user.user);
-    const { error: profileError } = await supabase.from("users").insert({
+    const { data: userProfile, error: profileError } = await supabase.from("users").insert({
         id: user.user?.id,
         first_name,
         last_name,
         email,
-    });
+    }).select("*, workers(*), companies(*), customers(*), subscriptions(*), trials(*), addresses(*)").single();
+
     if (profileError) {
         return new Response(JSON.stringify({ error: profileError.message, lcl: "profile" }), { status: 400 });
     }
@@ -57,6 +59,16 @@ export const POST = async (request: Request) => {
         return new Response(JSON.stringify({ error: roleError.message, lcl: "role_insert" }), { status: 400 });
     }
 
-    return new Response(JSON.stringify({ message: "User created successfully" }), { status: 200 });
+
+    //set the role of the user
+    userProfile.role = role;
+
+    //encode user and save to cookies, will be used in the onboarding...
+    const encodedProfile = encodeBase64(JSON.stringify(userProfile));
+    (await cookies()).set("app-user", encodedProfile, { path: '/' });
+
+    //sign the user out so to prevent them from accessing the dashboard, and continue to onboarding
+    await supabase.auth.signOut();
+    return new Response(JSON.stringify({ message: "Account created successfully", data: userProfile }), { status: 200 });
 
 }

@@ -1,215 +1,98 @@
 "use client";
-
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ModeToggle } from "@/components/mode-toggle";
-import {
-  User,
-  Mail,
-  MapPin,
-  Camera,
-  Briefcase,
-  Home,
-  Building,
-  Tag,
-  CreditCard,
-} from "lucide-react";
+import { Camera, User, MapPin, Home, Building, Tag } from "lucide-react";
+import WorkerForm from "./WorkerForm";
+import CustomerForm from "./CustomerForm";
+import CompanyForm from "./CompanyForm";
 
-interface OnboardingFormData {
-  id: string;
-  full_name: string; // Changed from name to full_name
-  email: string;
-  role: "worker" | "customer" | "company";
-  location: string;
-  avatar_url: string;
-  skills?: string[];
-  bio?: string;
-  hourly_rate?: string;
-  portfolio?: string[]; // Array of public URLs
-  bank_name?: string;
-  account_number?: string;
-  branch_code?: string;
-  id_number?: string;
-  company_name?: string;
+// Types (exported for forms to import)
+export interface Address {
+  country: string;
+  province: string;
+  city: string;
+  street_number: string;
+  street_name: string;
+  postal_code: string;
 }
 
-export default function OnboardingComponent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [role, setRole] = useState<"worker" | "customer" | "company" | null>(
-    null
-  );
-  const [formData, setFormData] = useState<OnboardingFormData>({
-    id: "",
-    full_name: "", // Changed from name to full_name
-    email: "",
-    role: "worker", // Default, will be updated
-    location: "",
-    avatar_url: "",
-    skills: [],
-    bio: "",
-    hourly_rate: "",
-    portfolio: [],
-    bank_name: "",
-    account_number: "",
-    branch_code: "",
-    id_number: "",
-    company_name: "",
-  });
-  const [newSkill, setNewSkill] = useState("");
+export interface BaseUser {
+  id: string;
+  full_name: string;
+  email: string;
+  role: "worker" | "customer" | "company";
+  avatar_url: string;
+  address: Address;
+  company_name?: string;
+  tax_number?: string;
+}
+
+export interface WorkerUser extends BaseUser {
+  role: "worker";
+  skills: string[];
+  bio: string;
+}
+
+export interface CustomerUser extends BaseUser {
+  role: "customer";
+}
+
+export interface CompanyUser extends BaseUser {
+  role: "company";
+  company_name: string;
+  tax_number: string;
+}
+
+export type OnboardingUser = WorkerUser | CustomerUser | CompanyUser;
+
+export interface Message {
+  type: "success" | "error";
+  text: string;
+}
+
+// Custom Hook (exported if needed elsewhere)
+export function useOnboardingSubmit(formData: OnboardingUser, router: any) {
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
-  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [message, setMessage] = useState<Message | null>(null);
 
-  useEffect(() => {
-    const roleParam = searchParams.get("role");
-    const userRole = ["worker", "customer", "company"].includes(roleParam || "")
-      ? (roleParam as "worker" | "customer" | "company")
-      : "company";
-
-    const userEmail =
-      localStorage.getItem("userEmail") || `user-${Date.now()}@brinkify.local`;
-    const userId =
-      localStorage.getItem("userId") ||
-      `user-${Math.random().toString(36).substring(7)}`;
-
-    setRole(userRole);
-    setFormData((prev: OnboardingFormData) => ({
-      ...prev,
-      id: userId,
-      email: userEmail,
-      role: userRole,
-    }));
-  }, [searchParams]);
-
-  const toggleMenu = () => setMenuOpen(!menuOpen);
-  const navigate = (path: string) => {
-    setMenuOpen(false);
-    router.push(path as any);
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length + (formData.portfolio?.length || 0) > 6) {
-      setMessage({
-        type: "error",
-        text: "You can upload up to 6 portfolio images.",
-      });
-      return;
-    }
-
-    try {
-      let processedCount = 0;
-      for (const file of files) {
-        if (file.size > 5 * 1024 * 1024) {
-          setMessage({
-            type: "error",
-            text: `Image ${file.name} must be less than 5MB.`,
-          });
-          return;
-        }
-
-        // Create data URL for local storage
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const dataUrl = event.target?.result as string;
-          setPreviewImages((prev) => [...prev, dataUrl]);
-          setFormData((prev) => ({
-            ...prev,
-            portfolio: [...(prev.portfolio || []), dataUrl],
-          }));
-          processedCount++;
-          if (processedCount === files.length) {
-            setMessage({ type: "success", text: "Images added successfully!" });
-          }
-        };
-        reader.readAsDataURL(file);
-      }
-    } catch (error: any) {
-      console.error("Error processing images:", error);
-      setMessage({ type: "error", text: "Failed to process images." });
-    }
-  };
-
-  const removeImage = (index: number) => {
-    setPreviewImages((prev: string[]) => prev.filter((_, i) => i !== index));
-    setFormData((prev: OnboardingFormData) => ({
-      ...prev,
-      portfolio: (prev.portfolio || []).filter((_, i) => i !== index),
-    }));
-    setMessage({ type: "success", text: "Image removed successfully!" });
-  };
-
-  const handleAddSkill = () => {
-    if (newSkill.trim() && !formData.skills?.includes(newSkill.trim())) {
-      setFormData((prev: OnboardingFormData) => ({
-        ...prev,
-        skills: [...(prev.skills || []), newSkill.trim()],
-      }));
-      setNewSkill("");
-    }
-  };
-
-  const handleRemoveSkill = (skill: string) => {
-    setFormData((prev: OnboardingFormData) => ({
-      ...prev,
-      skills: (prev.skills || []).filter((s) => s !== skill),
-    }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const validateAndSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
 
-    // Validation
-    if (!formData.location.trim()) {
-      setMessage({
-        type: "error",
-        text: "Please fill in all required fields.",
-      });
+    // Common validation: address completeness
+    const isAddressComplete = Object.values(formData.address).every((val) =>
+      val.trim()
+    );
+    if (!isAddressComplete) {
+      setMessage({ type: "error", text: "Please fill in all address fields." });
       return;
     }
 
-    if (role === "worker") {
-      if ((formData.portfolio?.length || 0) < 3) {
+    // Role-specific validation
+    if (formData.role === "worker") {
+      if (!formData.bio.trim() || formData.skills.length === 0) {
         setMessage({
           type: "error",
-          text: "Please upload at least 3 portfolio images.",
+          text: "Bio and at least one skill are required for workers.",
         });
         return;
       }
-      if (
-        !formData.bank_name ||
-        !formData.account_number ||
-        !formData.id_number
-      ) {
+    } else if (formData.role === "company") {
+      if (!formData.company_name.trim() || !formData.tax_number.trim()) {
         setMessage({
           type: "error",
-          text: "Banking and ID details are required for workers.",
+          text: "Company name and tax number are required.",
         });
         return;
       }
     }
 
-    if (role === "company" && !formData.company_name?.trim()) {
-      setMessage({
-        type: "error",
-        text: "Company Name is required for companies.",
-      });
-      return;
-    }
-
+    setLoading(true);
     try {
-      // Save profile to localStorage
       localStorage.setItem(`profile_${formData.id}`, JSON.stringify(formData));
       localStorage.setItem("userEmail", formData.email);
       localStorage.setItem("userId", formData.id);
-
       setMessage({
         type: "success",
         text: "Onboarding complete! Redirecting to dashboard...",
@@ -221,8 +104,238 @@ export default function OnboardingComponent() {
         type: "error",
         text: "Failed to complete onboarding. Please try again.",
       });
+    } finally {
+      setLoading(false);
     }
   };
+
+  return { loading, message, validateAndSubmit };
+}
+
+// Shared: AvatarUpload Component
+function AvatarUpload({
+  formData,
+  onAvatarChange,
+  fileInputRef,
+}: {
+  formData: OnboardingUser;
+  onAvatarChange: (url: string) => void;
+  fileInputRef: React.RefObject<HTMLInputElement>;
+}) {
+  return (
+    <div className="flex justify-center mb-6">
+      <div className="relative">
+        <img
+          src={
+            formData.avatar_url ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(
+              formData.full_name || "User"
+            )}&background=4F46E5&color=fff`
+          }
+          alt="Profile"
+          className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-md"
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-2 shadow-md hover:bg-blue-700"
+        >
+          <Camera className="w-4 h-4 text-white" />
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                onAvatarChange(event.target?.result as string);
+              };
+              reader.readAsDataURL(file);
+            }
+          }}
+          accept="image/*"
+          className="hidden"
+          title="Upload avatar"
+        />
+      </div>
+    </div>
+  );
+}
+
+// Shared: AddressForm Component (NOW EXPORTED!)
+export function AddressForm({
+  address,
+  onAddressChange,
+}: {
+  address: Address;
+  onAddressChange: (address: Address) => void;
+}) {
+  const updateField = (field: keyof Address, value: string) => {
+    onAddressChange({ ...address, [field]: value });
+  };
+
+  return (
+    <div className="space-y-4">
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        Address <span className="text-red-500">*</span>
+      </label>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="relative">
+          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <input
+            type="text"
+            value={address.street_number}
+            onChange={(e) => updateField("street_number", e.target.value)}
+            placeholder="Street Number"
+            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+            required
+          />
+        </div>
+        <div className="relative">
+          <Home className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <input
+            type="text"
+            value={address.street_name}
+            onChange={(e) => updateField("street_name", e.target.value)}
+            placeholder="Street Name"
+            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+            required
+          />
+        </div>
+        <div className="relative">
+          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <input
+            type="text"
+            value={address.city}
+            onChange={(e) => updateField("city", e.target.value)}
+            placeholder="City"
+            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+            required
+          />
+        </div>
+        <div className="relative">
+          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <input
+            type="text"
+            value={address.province}
+            onChange={(e) => updateField("province", e.target.value)}
+            placeholder="Province"
+            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+            required
+          />
+        </div>
+        <div className="relative md:col-span-2">
+          <input
+            type="text"
+            value={address.postal_code}
+            onChange={(e) => updateField("postal_code", e.target.value)}
+            placeholder="Postal Code"
+            className="w-full pl-4 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+            required
+          />
+        </div>
+        <div className="relative md:col-span-2">
+          <input
+            type="text"
+            value={address.country}
+            onChange={(e) => updateField("country", e.target.value)}
+            placeholder="Country"
+            className="w-full pl-4 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+            required
+          />
+        </div>
+      </div>
+      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        This helps us recommend local opportunities.
+      </p>
+    </div>
+  );
+}
+
+export default function OnboardingComponent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [role, setRole] = useState<"worker" | "customer" | "company" | null>(
+    null
+  );
+  const [formData, setFormData] = useState<OnboardingUser>({
+    id: "",
+    full_name: "",
+    email: "",
+    role: "worker" as const,
+    avatar_url: "",
+    address: {
+      country: "South Africa",
+      province: "",
+      city: "",
+      street_number: "",
+      street_name: "",
+      postal_code: "",
+    },
+    skills: [],
+    bio: "",
+    company_name: "",
+    tax_number: "",
+  });
+
+  useEffect(() => {
+    const roleParam = searchParams.get("role");
+    const userRole = (
+      ["worker", "customer", "company"].includes(roleParam || "")
+        ? (roleParam as "worker" | "customer" | "company")
+        : "company"
+    ) as "worker" | "customer" | "company";
+    const userEmail =
+      localStorage.getItem("userEmail") || `user-${Date.now()}@brinkify.local`;
+    const userId =
+      localStorage.getItem("userId") ||
+      `user-${Math.random().toString(36).substring(7)}`;
+
+    setRole(userRole);
+
+    const base = {
+      id: userId,
+      full_name: "",
+      email: userEmail,
+      role: userRole,
+      avatar_url: "",
+      address: {
+        country: "South Africa",
+        province: "",
+        city: "",
+        street_number: "",
+        street_name: "",
+        postal_code: "",
+      },
+    };
+
+    let initializedData: OnboardingUser;
+    if (userRole === "worker") {
+      initializedData = { ...base, skills: [], bio: "" } as OnboardingUser;
+    } else if (userRole === "customer") {
+      initializedData = base as OnboardingUser;
+    } else {
+      initializedData = {
+        ...base,
+        company_name: "",
+        tax_number: "",
+      } as OnboardingUser;
+    }
+
+    setFormData(initializedData);
+  }, [searchParams]);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const handleAvatarChange = (url: string) => {
+    setFormData((prev) => ({ ...prev, avatar_url: url }));
+  };
+
+  const { loading, message, validateAndSubmit } = useOnboardingSubmit(
+    formData,
+    router
+  );
 
   if (!role) {
     return (
@@ -233,6 +346,19 @@ export default function OnboardingComponent() {
       </div>
     );
   }
+
+  const renderRoleForm = () => {
+    switch (role) {
+      case "worker":
+        return <WorkerForm formData={formData} onFormChange={setFormData} />;
+      case "customer":
+        return <CustomerForm formData={formData} onFormChange={setFormData} />;
+      case "company":
+        return <CompanyForm formData={formData} onFormChange={setFormData} />;
+      default:
+        return null;
+    }
+  };
 
   const isWorker = role === "worker";
   const isCompany = role === "company";
@@ -306,210 +432,8 @@ export default function OnboardingComponent() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Avatar */}
-            <div className="flex justify-center mb-6">
-              <div className="relative">
-                <img
-                  src={
-                    formData.avatar_url ||
-                    `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                      formData.full_name || "User"
-                    )}&background=4F46E5&color=fff`
-                  }
-                  alt="Profile"
-                  className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-md"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-2 shadow-md hover:bg-blue-700"
-                >
-                  <Camera className="w-4 h-4 text-white" />
-                </button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  accept="image/*"
-                  className="hidden"
-                  title="Upload avatar"
-                />
-              </div>
-            </div>
-
-            {/* Company Name (if company) */}
-            {isCompany && (
-              <div>
-                <label
-                  htmlFor="companyName"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >
-                  Company Name <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    id="companyName"
-                    type="text"
-                    value={formData.company_name || ""}
-                    onChange={(e) =>
-                      setFormData({ ...formData, company_name: e.target.value })
-                    }
-                    required
-                    className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                    placeholder="e.g. ABC Construction"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Address */}
-            <div>
-              <label
-                htmlFor="location"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >
-                Location <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  id="location"
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) =>
-                    setFormData({ ...formData, location: e.target.value })
-                  }
-                  required
-                  className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                  placeholder="e.g. Johannesburg, Sandton"
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                This helps us recommend local opportunities.
-              </p>
-            </div>
-
-            {/* Worker-Specific Fields */}
-            {isWorker && (
-              <>
-                {/* Bio */}
-                <div>
-                  <label
-                    htmlFor="bio"
-                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    Professional Bio <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    id="bio"
-                    value={formData.bio || ""}
-                    onChange={(e) =>
-                      setFormData({ ...formData, bio: e.target.value })
-                    }
-                    rows={3}
-                    required
-                    className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                    placeholder="Describe your experience, certifications, and services..."
-                  />
-                </div>
-
-                {/* Skills */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Skills <span className="text-red-500">*</span>
-                  </label>
-                  <div className="flex gap-2 mb-2">
-                    <input
-                      type="text"
-                      value={newSkill}
-                      onChange={(e) => setNewSkill(e.target.value)}
-                      placeholder="Add a skill"
-                      className="flex-1 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddSkill}
-                      className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-700"
-                    >
-                      Add
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {(formData.skills || []).map((skill, i) => (
-                      <span
-                        key={i}
-                        className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 px-2.5 py-1 rounded-full text-sm"
-                      >
-                        {skill}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveSkill(skill)}
-                          className="ml-1 hover:text-blue-600 dark:hover:text-blue-400"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Portfolio */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Portfolio Images{" "}
-                    <span className="text-red-500">*(Min 3)</span>
-                  </label>
-                  <div className="flex gap-2 flex-wrap">
-                    {previewImages.map((src, i) => (
-                      <div key={i} className="relative w-20 h-20">
-                        <img
-                          src={src}
-                          alt={`Preview ${i + 1}`}
-                          className="w-full h-full object-cover rounded-lg border border-gray-300 dark:border-gray-600"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(i)}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="w-3 h-3"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M6 18L18 6M6 6l12 12"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-                    {(formData.portfolio?.length || 0) < 6 && (
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-20 h-20 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-400 hover:border-blue-500 hover:text-blue-500 transition"
-                      >
-                        <Camera className="w-6 h-6 mb-1" />
-                        <span className="text-xs">Add</span>
-                      </button>
-                    )}
-                  </div>
-                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    Show your best work. Minimum 3 images required for approval.
-                  </p>
-                </div>
-              </>
-            )}
-
-            {/* Submit */}
+          <form onSubmit={validateAndSubmit} className="space-y-6">
+            {renderRoleForm()}
             <button
               type="submit"
               disabled={loading}
