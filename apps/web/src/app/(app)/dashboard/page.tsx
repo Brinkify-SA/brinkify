@@ -42,7 +42,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchUserProfile = async () => {
       //get user info from cookies
-      const appUser = await getUserFromCookies();
+      const appUser = getUserFromCookies();
       setLoading(true);
       setError(null);
       try {

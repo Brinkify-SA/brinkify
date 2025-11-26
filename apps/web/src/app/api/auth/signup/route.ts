@@ -69,6 +69,7 @@ export const POST = async (request: Request) => {
 
     //sign the user out so to prevent them from accessing the dashboard, and continue to onboarding
     await supabase.auth.signOut();
+    
     return new Response(JSON.stringify({ message: "Account created successfully", data: userProfile }), { status: 200 });
 
 }
