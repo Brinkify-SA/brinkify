@@ -19,13 +19,14 @@ export interface Address {
 
 export interface BaseUser {
   id: string;
-  full_name: string;
   email: string;
   role: "worker" | "customer" | "company";
   avatar_url: string;
   address: Address;
   company_name?: string;
   tax_number?: string;
+  skills?: string[];
+  bio?: string;
 }
 
 export interface WorkerUser extends BaseUser {
@@ -113,56 +114,6 @@ export function useOnboardingSubmit(formData: OnboardingUser, router: any) {
 }
 
 // Shared: AvatarUpload Component
-function AvatarUpload({
-  formData,
-  onAvatarChange,
-  fileInputRef,
-}: {
-  formData: OnboardingUser;
-  onAvatarChange: (url: string) => void;
-  fileInputRef: React.RefObject<HTMLInputElement>;
-}) {
-  return (
-    <div className="flex justify-center mb-6">
-      <div className="relative">
-        <img
-          src={
-            formData.avatar_url ||
-            `https://ui-avatars.com/api/?name=${encodeURIComponent(
-              formData.full_name || "User"
-            )}&background=4F46E5&color=fff`
-          }
-          alt="Profile"
-          className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-md"
-        />
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-2 shadow-md hover:bg-blue-700"
-        >
-          <Camera className="w-4 h-4 text-white" />
-        </button>
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) {
-              const reader = new FileReader();
-              reader.onload = (event) => {
-                onAvatarChange(event.target?.result as string);
-              };
-              reader.readAsDataURL(file);
-            }
-          }}
-          accept="image/*"
-          className="hidden"
-          title="Upload avatar"
-        />
-      </div>
-    </div>
-  );
-}
 
 // Shared: AddressForm Component (NOW EXPORTED!)
 export function AddressForm({
@@ -262,7 +213,6 @@ export default function OnboardingComponent() {
   );
   const [formData, setFormData] = useState<OnboardingUser>({
     id: "",
-    full_name: "",
     email: "",
     role: "worker" as const,
     avatar_url: "",
