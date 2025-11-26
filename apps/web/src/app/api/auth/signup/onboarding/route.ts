@@ -17,10 +17,11 @@ import { decodeBase64 } from "@/utils/base64Utils";
 import { cookies } from "next/headers";
 
 
-const encodedProfile = (await cookies()).get("app-user")?.value;//get the user from the cookie
-const user = decodeBase64(encodedProfile!);//decode the user from the cookie
+
 
 export async function POST(request: Request) {
+  const encodedProfile = (await cookies()).get("app-user")?.value;//get the user from the cookie
+  const user = decodeBase64(encodedProfile!);//decode the user from the cookie
   const data = await request.json();
   console.log(data);//this is the onboarding form data
   return new Response(JSON.stringify({ data, user }), { status: 200 });
