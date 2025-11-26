@@ -48,7 +48,15 @@ export default function LoginPage() {
 
       if (req.status === 200) {
         localStorage.setItem("userEmail", email);
+        //redirect the user to the onboarding page if needed
+        if (data.redirect) {
+          router.push(data.redirect);
+          return;
+        }
+
+        //redirect the user to dashboard
         router.push("/dashboard");
+        return;
       } else {
         setError(data.error || "Login failed. Please try again.");
       }
