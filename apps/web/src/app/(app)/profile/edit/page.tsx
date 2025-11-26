@@ -222,7 +222,7 @@ export default function EditProfilePage() {
         // For mock data, create a local URL instead of uploading to Supabase
         const fileReader = new FileReader();
         fileReader.onload = () => {
-          setFormData((prev) => ({
+          setFormData((prev: any) => ({
             ...prev,
             avatar_url: fileReader.result as string,
           }));
@@ -243,7 +243,7 @@ export default function EditProfilePage() {
 
   const handleAddSkill = () => {
     if (newSkill.trim() && !formData.skills?.includes(newSkill.trim())) {
-      setFormData((prev) => ({
+      setFormData((prev: any) => ({
         ...prev,
         skills: [...(prev.skills || []), newSkill.trim()],
       }));
@@ -252,9 +252,9 @@ export default function EditProfilePage() {
   };
 
   const handleRemoveSkill = (skill: string) => {
-    setFormData((prev) => ({
+    setFormData((prev: any) => ({
       ...prev,
-      skills: (prev.skills || []).filter((s) => s !== skill),
+      skills: (prev.skills || []).filter((s: any) => s !== skill),
     }));
   };
 
@@ -263,7 +263,7 @@ export default function EditProfilePage() {
       newCategory.trim() &&
       !formData.preferred_categories?.includes(newCategory.trim())
     ) {
-      setFormData((prev) => ({
+      setFormData((prev: any) => ({
         ...prev,
         preferred_categories: [
           ...(prev.preferred_categories || []),
@@ -275,10 +275,10 @@ export default function EditProfilePage() {
   };
 
   const handleRemoveCategory = (category: string) => {
-    setFormData((prev) => ({
+    setFormData((prev: any) => ({
       ...prev,
       preferred_categories: (prev.preferred_categories || []).filter(
-        (c) => c !== category
+        (c: any) => c !== category
       ),
     }));
   };
@@ -644,7 +644,7 @@ export default function EditProfilePage() {
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {(formData.skills || []).map((skill, i) => (
+                    {(formData.skills || []).map((skill: string, i: number) => (
                       <span
                         key={i}
                         className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 px-2.5 py-1 rounded-full text-sm"
@@ -667,19 +667,21 @@ export default function EditProfilePage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Portfolio
                   </label>
-                  {(formData.portfolio || []).map((item, index) => (
-                    <div key={index} className="flex items-center gap-2 mb-2">
-                      <LinkIcon className="w-4 h-4 text-gray-400" />
-                      <a
-                        href={item.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline text-sm"
-                      >
-                        {item.title}
-                      </a>
-                    </div>
-                  ))}
+                  {(formData.portfolio || []).map(
+                    (item: any, index: number) => (
+                      <div key={index} className="flex items-center gap-2 mb-2">
+                        <LinkIcon className="w-4 h-4 text-gray-400" />
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline text-sm"
+                        >
+                          {item.title}
+                        </a>
+                      </div>
+                    )
+                  )}
                   {/* Add portfolio item form could be added here */}
                 </div>
               </>
@@ -708,21 +710,23 @@ export default function EditProfilePage() {
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {(formData.preferred_categories || []).map((cat, i) => (
-                    <span
-                      key={i}
-                      className="inline-flex items-center gap-1 bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 px-2.5 py-1 rounded-full text-sm"
-                    >
-                      {cat}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveCategory(cat)}
-                        className="ml-1 hover:text-purple-600 dark:hover:text-purple-400"
+                  {(formData.preferred_categories || []).map(
+                    (cat: any, i: number) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center gap-1 bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 px-2.5 py-1 rounded-full text-sm"
                       >
-                        ×
-                      </button>
-                    </span>
-                  ))}
+                        {cat}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCategory(cat)}
+                          className="ml-1 hover:text-purple-600 dark:hover:text-purple-400"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    )
+                  )}
                 </div>
               </div>
             )}
