@@ -1,129 +1,151 @@
 // app/profile/edit/page.tsx
-'use client';
+"use client";
 
-import { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { ModeToggle } from '@/components/mode-toggle';
-import { User, Mail, MapPin, Camera, Star, Briefcase, Home, Tag, X, Link as LinkIcon, Banknote } from 'lucide-react';
-import Loader from '@/components/loader'; // Assuming a Loader component exists
-
-interface UserProfile {
-  id: string;
-  full_name: string; // Changed from name to full_name
-  email: string;
-  role: 'worker' | 'customer' | 'company';
-  location: string;
-  avatar_url: string;
-  skills?: string[];
-  bio?: string;
-  hourly_rate?: string;
-  portfolio?: { title: string; url: string }[];
-  bank_name?: string;
-  account_number?: string;
-  branch_code?: string;
-  id_number?: string; // Added id_number
-  preferred_categories?: string[];
-}
+import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ModeToggle } from "@/components/mode-toggle";
+import {
+  User,
+  Mail,
+  MapPin,
+  Camera,
+  Star,
+  Briefcase,
+  Home,
+  Tag,
+  X,
+  Link as LinkIcon,
+  Banknote,
+} from "lucide-react";
+import Loader from "@/components/loader"; // Assuming a Loader component exists
+import type { UserProfile } from "@/utils/types/UserProfile";
+import { getUserFromCookies } from "@/utils/base64Utils";
+import { getAvatarUrl } from "@/lib/avatars";
 
 export default function EditProfilePage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [formData, setFormData] = useState<UserProfile>({
-    id: '',
-    full_name: '', // Changed from name to full_name
-    email: '',
-    role: 'worker', // Default role, will be overwritten by fetched data
-    location: '',
-    avatar_url: '',
+  const [formData, setFormData] = useState<any>({
+    id: "",
+    full_name: "", // Changed from name to full_name
+    email: "",
+    role: "worker", // Default role, will be overwritten by fetched data
+    location: "",
+    avatar_url: "",
     skills: [],
-    bio: '',
-    hourly_rate: '',
+    bio: "",
+    hourly_rate: "",
     portfolio: [],
-    bank_name: '',
-    account_number: '',
-    branch_code: '',
-    id_number: '', // Added id_number
+    bank_name: "",
+    account_number: "",
+    branch_code: "",
+    id_number: "", // Added id_number
     preferred_categories: [],
   });
-  const [newSkill, setNewSkill] = useState('');
-  const [newCategory, setNewCategory] = useState('');
+  const [newSkill, setNewSkill] = useState("");
+  const [newCategory, setNewCategory] = useState("");
   const [loading, setLoading] = useState(true); // Set to true initially for data fetching
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   // Mock workers data that matches profile page
   const mockWorkers = {
-    '2': {
-      id: '2',
-      full_name: 'Sarah Worker',
-      email: 'worker@test.com',
-      role: 'worker' as const,
-      location: 'Cape Town, Southern Suburbs',
-      avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
-      bio: 'Experienced landscaper with 8+ years in the industry. Specialized in garden design and maintenance.',
-      skills: ['Landscaping', 'Garden Design', 'Pruning', 'Soil Preparation'],
-      hourly_rate: '180',
+    "2": {
+      id: "2",
+      full_name: "Sarah Worker",
+      email: "worker@test.com",
+      role: "worker" as const,
+      location: "Cape Town, Southern Suburbs",
+      avatar_url: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
+      bio: "Experienced landscaper with 8+ years in the industry. Specialized in garden design and maintenance.",
+      skills: ["Landscaping", "Garden Design", "Pruning", "Soil Preparation"],
+      hourly_rate: "180",
       portfolio: [
-        { title: 'Rose Garden Project', url: 'https://images.pexels.com/photos/1105726/pexels-photo-1105726.jpeg?auto=compress&cs=tinysrgb&w=600' },
-        { title: 'Lawn Restoration', url: 'https://images.pexels.com/photos/3225517/pexels-photo-3225517.jpeg?auto=compress&cs=tinysrgb&w=600' },
+        {
+          title: "Rose Garden Project",
+          url: "https://images.pexels.com/photos/1105726/pexels-photo-1105726.jpeg?auto=compress&cs=tinysrgb&w=600",
+        },
+        {
+          title: "Lawn Restoration",
+          url: "https://images.pexels.com/photos/3225517/pexels-photo-3225517.jpeg?auto=compress&cs=tinysrgb&w=600",
+        },
       ],
-      bank_name: 'FNB',
-      account_number: '7654321098765',
-      branch_code: '250155',
-      id_number: '9205201234567',
+      bank_name: "FNB",
+      account_number: "7654321098765",
+      branch_code: "250155",
+      id_number: "9205201234567",
       preferred_categories: [],
     },
-    '3': {
-      id: '3',
-      full_name: 'Mike Electrician',
-      email: 'electrician@test.com',
-      role: 'worker' as const,
-      location: 'Johannesburg, Sandton',
-      avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike',
-      bio: 'Licensed electrician with 12+ years experience. Specializing in residential and commercial wiring.',
-      skills: ['Electrical Wiring', 'Circuit Installation', 'Safety Compliance', 'LED Installation'],
-      hourly_rate: '250',
-      portfolio: [
-        { title: 'Kitchen Rewiring', url: 'https://images.pexels.com/photos/2724749/pexels-photo-2724749.jpeg?auto=compress&cs=tinysrgb&w=600' },
+    "3": {
+      id: "3",
+      full_name: "Mike Electrician",
+      email: "electrician@test.com",
+      role: "worker" as const,
+      location: "Johannesburg, Sandton",
+      avatar_url: "https://api.dicebear.com/7.x/avataaars/svg?seed=Mike",
+      bio: "Licensed electrician with 12+ years experience. Specializing in residential and commercial wiring.",
+      skills: [
+        "Electrical Wiring",
+        "Circuit Installation",
+        "Safety Compliance",
+        "LED Installation",
       ],
-      bank_name: 'Standard Bank',
-      account_number: '1234567890123',
-      branch_code: '051001',
-      id_number: '8904151234567',
+      hourly_rate: "250",
+      portfolio: [
+        {
+          title: "Kitchen Rewiring",
+          url: "https://images.pexels.com/photos/2724749/pexels-photo-2724749.jpeg?auto=compress&cs=tinysrgb&w=600",
+        },
+      ],
+      bank_name: "Standard Bank",
+      account_number: "1234567890123",
+      branch_code: "051001",
+      id_number: "8904151234567",
       preferred_categories: [],
     },
-    '4': {
-      id: '4',
-      full_name: 'Thabo N.',
-      email: 'thabo@test.com',
-      role: 'worker' as const,
-      location: 'Pretoria, Eastwood',
-      avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Thabo',
-      bio: 'Expert plumber with 10+ years experience. Handles everything from basic repairs to complex installations.',
-      skills: ['Plumbing', 'Pipe Installation', 'Leak Detection', 'Bathroom Fitting'],
-      hourly_rate: '200',
-      portfolio: [
-        { title: 'Bathroom Renovation', url: 'https://images.pexels.com/photos/1350789/pexels-photo-1350789.jpeg?auto=compress&cs=tinysrgb&w=600' },
+    "4": {
+      id: "4",
+      full_name: "Thabo N.",
+      email: "thabo@test.com",
+      role: "worker" as const,
+      location: "Pretoria, Eastwood",
+      avatar_url: "https://api.dicebear.com/7.x/avataaars/svg?seed=Thabo",
+      bio: "Expert plumber with 10+ years experience. Handles everything from basic repairs to complex installations.",
+      skills: [
+        "Plumbing",
+        "Pipe Installation",
+        "Leak Detection",
+        "Bathroom Fitting",
       ],
-      bank_name: 'Capitec',
-      account_number: '9876543210987',
-      branch_code: '430000',
-      id_number: '7805091234567',
+      hourly_rate: "200",
+      portfolio: [
+        {
+          title: "Bathroom Renovation",
+          url: "https://images.pexels.com/photos/1350789/pexels-photo-1350789.jpeg?auto=compress&cs=tinysrgb&w=600",
+        },
+      ],
+      bank_name: "Capitec",
+      account_number: "9876543210987",
+      branch_code: "430000",
+      id_number: "7805091234567",
       preferred_categories: [],
     },
   };
 
   const mockUsers = {
-    'homeowner@test.com': {
-      id: '1',
-      full_name: 'John Homeowner',
-      email: 'homeowner@test.com',
-      role: 'customer' as const,
-      location: 'Johannesburg, Northern Suburbs',
-      avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John',
-      preferred_categories: ['Electricians', 'Plumbers', 'Painters'],
+    "homeowner@test.com": {
+      id: "1",
+      full_name: "John Homeowner",
+      email: "homeowner@test.com",
+      role: "customer" as const,
+      location: "Johannesburg, Northern Suburbs",
+      avatar_url: "https://api.dicebear.com/7.x/avataaars/svg?seed=John",
+      preferred_categories: ["Electricians", "Plumbers", "Painters"],
     },
   };
 
@@ -132,58 +154,43 @@ export default function EditProfilePage() {
       setLoading(true);
       setMessage(null);
       try {
-        // Get user email from localStorage
-        const userEmail = localStorage.getItem('userEmail');
-
-        if (!userEmail) {
-          router.push('/auth/login');
-          return;
-        }
-
         // Check if user is a worker
-        let profile: UserProfile | null = null;
-        
-        // Try to find worker in mockWorkers
-        for (const workerId in mockWorkers) {
-          if (mockWorkers[workerId as keyof typeof mockWorkers].email === userEmail) {
-            profile = mockWorkers[workerId as keyof typeof mockWorkers];
-            break;
-          }
-        }
-
-        // If not found, try mockUsers
-        if (!profile && mockUsers[userEmail as keyof typeof mockUsers]) {
-          profile = mockUsers[userEmail as keyof typeof mockUsers];
-        }
+        let profile = getUserFromCookies();
 
         if (!profile) {
-          setMessage({ type: 'error', text: 'User profile not found.' });
-          router.push('/auth/login');
+          setMessage({ type: "error", text: "User profile not found." });
+          router.push("/auth/login");
           return;
         }
 
         setUser(profile);
         setFormData({
           id: profile.id,
-          full_name: profile.full_name,
+          full_name: profile.first_name + " " + profile.last_name,
           email: profile.email,
           role: profile.role,
-          location: profile.location,
-          avatar_url: profile.avatar_url,
-          skills: profile.skills || [],
-          bio: profile.bio || '',
-          hourly_rate: profile.hourly_rate || '',
+          location:
+            profile.addresses[0].city + ", " + profile.addresses[0].province,
+          avatar_url: getAvatarUrl(
+            profile.first_name + " " + profile.last_name
+          ),
+          skills: profile.workers?.skills.split(",") || [],
+          bio: profile.workers?.bio || "",
+          hourly_rate: profile.hourly_rate || "",
           portfolio: profile.portfolio || [],
-          bank_name: profile.bank_name || '',
-          account_number: profile.account_number || '',
-          branch_code: profile.branch_code || '',
-          id_number: profile.id_number || '',
+          bank_name: profile.bank_name || "",
+          account_number: profile.account_number || "",
+          branch_code: profile.branch_code || "",
+          id_number: profile.id_number || "",
           preferred_categories: profile.preferred_categories || [],
         });
       } catch (err: any) {
-        console.error('Error fetching user profile:', err);
-        setMessage({ type: 'error', text: err.message || 'Failed to load user profile.' });
-        router.push('/auth/login'); // Redirect to login on error
+        console.error("Error fetching user profile:", err);
+        setMessage({
+          type: "error",
+          text: err.message || "Failed to load user profile.",
+        });
+        router.push("/auth/login"); // Redirect to login on error
       } finally {
         setLoading(false);
       }
@@ -199,12 +206,12 @@ export default function EditProfilePage() {
   };
 
   const handleLogout = async () => {
-    localStorage.removeItem('userEmail');
-    router.push('/auth/login');
+    localStorage.removeItem("userEmail");
+    router.push("/auth/login");
   };
 
   const handleCancel = () => {
-    router.push('/dashboard');
+    router.push("/dashboard");
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -215,14 +222,20 @@ export default function EditProfilePage() {
         // For mock data, create a local URL instead of uploading to Supabase
         const fileReader = new FileReader();
         fileReader.onload = () => {
-          setFormData((prev) => ({ ...prev, avatar_url: fileReader.result as string }));
-          setMessage({ type: 'success', text: 'Avatar updated successfully!' });
+          setFormData((prev) => ({
+            ...prev,
+            avatar_url: fileReader.result as string,
+          }));
+          setMessage({ type: "success", text: "Avatar updated successfully!" });
           setLoading(false);
         };
         fileReader.readAsDataURL(file);
       } catch (error: any) {
-        console.error('Error updating avatar:', error);
-        setMessage({ type: 'error', text: error.message || 'Failed to update avatar.' });
+        console.error("Error updating avatar:", error);
+        setMessage({
+          type: "error",
+          text: error.message || "Failed to update avatar.",
+        });
         setLoading(false);
       }
     }
@@ -234,7 +247,7 @@ export default function EditProfilePage() {
         ...prev,
         skills: [...(prev.skills || []), newSkill.trim()],
       }));
-      setNewSkill('');
+      setNewSkill("");
     }
   };
 
@@ -246,19 +259,27 @@ export default function EditProfilePage() {
   };
 
   const handleAddCategory = () => {
-    if (newCategory.trim() && !formData.preferred_categories?.includes(newCategory.trim())) {
+    if (
+      newCategory.trim() &&
+      !formData.preferred_categories?.includes(newCategory.trim())
+    ) {
       setFormData((prev) => ({
         ...prev,
-        preferred_categories: [...(prev.preferred_categories || []), newCategory.trim()],
+        preferred_categories: [
+          ...(prev.preferred_categories || []),
+          newCategory.trim(),
+        ],
       }));
-      setNewCategory('');
+      setNewCategory("");
     }
   };
 
   const handleRemoveCategory = (category: string) => {
     setFormData((prev) => ({
       ...prev,
-      preferred_categories: (prev.preferred_categories || []).filter((c) => c !== category),
+      preferred_categories: (prev.preferred_categories || []).filter(
+        (c) => c !== category
+      ),
     }));
   };
 
@@ -268,7 +289,7 @@ export default function EditProfilePage() {
     setMessage(null);
 
     if (!user) {
-      setMessage({ type: 'error', text: 'User not authenticated.' });
+      setMessage({ type: "error", text: "User not authenticated." });
       setLoading(false);
       return;
     }
@@ -276,13 +297,16 @@ export default function EditProfilePage() {
     try {
       // For mock data, just show success message
       // In a real app, this would update the Supabase database
-      setMessage({ type: 'success', text: 'Profile updated successfully!' });
+      setMessage({ type: "success", text: "Profile updated successfully!" });
       setTimeout(() => {
-        router.push('/dashboard');
+        router.push("/dashboard");
       }, 1000);
     } catch (err: any) {
-      console.error('Error updating profile:', err);
-      setMessage({ type: 'error', text: err.message || 'Failed to update profile. Please try again.' });
+      console.error("Error updating profile:", err);
+      setMessage({
+        type: "error",
+        text: err.message || "Failed to update profile. Please try again.",
+      });
     } finally {
       setLoading(false);
     }
@@ -292,11 +316,14 @@ export default function EditProfilePage() {
     return <Loader />;
   }
 
-  if (message?.type === 'error' && !user) {
+  if (message?.type === "error" && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <p className="text-red-600 dark:text-red-400">Error: {message.text}</p>
-        <button onClick={() => router.push('/auth/login')} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+        <button
+          onClick={() => router.push("/auth/login")}
+          className="ml-4 text-blue-600 dark:text-blue-400 hover:underline"
+        >
           Go to Login
         </button>
       </div>
@@ -306,27 +333,37 @@ export default function EditProfilePage() {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <p className="text-gray-600 dark:text-gray-300">No user data found. Please log in.</p>
-        <button onClick={() => router.push('/auth/login')} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+        <p className="text-gray-600 dark:text-gray-300">
+          No user data found. Please log in.
+        </p>
+        <button
+          onClick={() => router.push("/auth/login")}
+          className="ml-4 text-blue-600 dark:text-blue-400 hover:underline"
+        >
           Go to Login
         </button>
       </div>
     );
   }
 
-  const isWorker = user.role === 'worker';
+  const isWorker = user.role === "worker";
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors">
       {/* --- Navbar --- */}
       <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <button onClick={handleCancel} className="text-blue-600 dark:text-blue-400 flex items-center gap-1">
+          <button
+            onClick={handleCancel}
+            className="text-blue-600 dark:text-blue-400 flex items-center gap-1"
+          >
             <X className="w-5 h-5" />
             <span className="hidden sm:inline">Cancel</span>
           </button>
 
-          <h1 className="text-lg font-bold text-gray-800 dark:text-white">Edit Profile</h1>
+          <h1 className="text-lg font-bold text-gray-800 dark:text-white">
+            Edit Profile
+          </h1>
 
           <div className="hidden md:block">
             <ModeToggle />
@@ -337,8 +374,19 @@ export default function EditProfilePage() {
             className="md:hidden text-blue-600 dark:text-blue-400 focus:outline-none"
             aria-label="Toggle menu"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
             </svg>
           </button>
         </div>
@@ -347,18 +395,56 @@ export default function EditProfilePage() {
       {/* Mobile Menu */}
       {menuOpen && (
         <div className="md:hidden fixed inset-0 z-[60]">
-          <div className="absolute inset-0 bg-black/50" onClick={toggleMenu}></div>
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={toggleMenu}
+          ></div>
           <div className="absolute left-0 top-0 h-full w-3/4 bg-blue-600 text-white p-6 pt-16">
-            <button onClick={toggleMenu} className="absolute top-4 right-4 text-white" aria-label="Close menu">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <button
+              onClick={toggleMenu}
+              className="absolute top-4 right-4 text-white"
+              aria-label="Close menu"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
             <nav className="flex flex-col space-y-4 mt-6">
-              <button onClick={() => navigate('/')} className="text-left text-lg font-medium">Home</button>
-              <button onClick={() => navigate('/explore')} className="text-left text-lg font-medium">Explore</button>
-              <button onClick={() => navigate('/about')} className="text-left text-lg font-medium">About Us</button>
-              <button onClick={handleLogout} className="text-left text-lg font-medium">Log Out</button>
+              <button
+                onClick={() => navigate("/")}
+                className="text-left text-lg font-medium"
+              >
+                Home
+              </button>
+              <button
+                onClick={() => navigate("/explore")}
+                className="text-left text-lg font-medium"
+              >
+                Explore
+              </button>
+              <button
+                onClick={() => navigate("/about")}
+                className="text-left text-lg font-medium"
+              >
+                About Us
+              </button>
+              <button
+                onClick={handleLogout}
+                className="text-left text-lg font-medium"
+              >
+                Log Out
+              </button>
             </nav>
           </div>
         </div>
@@ -370,9 +456,9 @@ export default function EditProfilePage() {
           {message && (
             <div
               className={`mb-6 p-3 rounded-lg text-sm ${
-                message.type === 'success'
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                  : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                message.type === "success"
+                  ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                  : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
               }`}
             >
               {message.text}
@@ -384,7 +470,10 @@ export default function EditProfilePage() {
             <div className="flex flex-col items-center mb-6">
               <div className="relative">
                 <img
-                  src={formData.avatar_url || 'https://ui-avatars.com/api/?name=User&background=random&color=fff'}
+                  src={
+                    formData.avatar_url ||
+                    "https://ui-avatars.com/api/?name=User&background=random&color=fff"
+                  }
                   alt="Profile"
                   className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-md"
                 />
@@ -410,7 +499,10 @@ export default function EditProfilePage() {
 
             {/* Name */}
             <div>
-              <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label
+                htmlFor="full_name"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
                 Full Name
               </label>
               <div className="relative">
@@ -420,7 +512,9 @@ export default function EditProfilePage() {
                   name="full_name"
                   type="text"
                   value={formData.full_name}
-                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, full_name: e.target.value })
+                  }
                   required
                   className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                 />
@@ -429,7 +523,10 @@ export default function EditProfilePage() {
 
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
                 Email Address
               </label>
               <div className="relative">
@@ -447,7 +544,10 @@ export default function EditProfilePage() {
 
             {/* Location — CRITICAL FOR JOB MATCHING */}
             <div>
-              <label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label
+                htmlFor="location"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
                 Location <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -457,7 +557,9 @@ export default function EditProfilePage() {
                   name="location"
                   type="text"
                   value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, location: e.target.value })
+                  }
                   placeholder="e.g. Johannesburg, Sandton"
                   required
                   className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
@@ -473,13 +575,18 @@ export default function EditProfilePage() {
               <>
                 {/* Bio */}
                 <div>
-                  <label htmlFor="bio" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label
+                    htmlFor="bio"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  >
                     Professional Bio
                   </label>
                   <textarea
                     id="bio"
-                    value={formData.bio || ''}
-                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                    value={formData.bio || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, bio: e.target.value })
+                    }
                     rows={3}
                     className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                     placeholder="Tell customers about your experience..."
@@ -488,16 +595,26 @@ export default function EditProfilePage() {
 
                 {/* Hourly Rate */}
                 <div>
-                  <label htmlFor="hourlyRate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label
+                    htmlFor="hourlyRate"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  >
                     Hourly Rate (ZAR)
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400">R</span>
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400">
+                      R
+                    </span>
                     <input
                       id="hourlyRate"
                       type="number"
-                      value={formData.hourly_rate || ''}
-                      onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
+                      value={formData.hourly_rate || ""}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          hourly_rate: e.target.value,
+                        })
+                      }
                       min="0"
                       className="w-full pl-8 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                       placeholder="0"
@@ -553,52 +670,17 @@ export default function EditProfilePage() {
                   {(formData.portfolio || []).map((item, index) => (
                     <div key={index} className="flex items-center gap-2 mb-2">
                       <LinkIcon className="w-4 h-4 text-gray-400" />
-                      <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline text-sm"
+                      >
                         {item.title}
                       </a>
                     </div>
                   ))}
                   {/* Add portfolio item form could be added here */}
-                </div>
-
-                {/* Banking Details */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Banking Details
-                  </label>
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <Banknote className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                      <input
-                        type="text"
-                        value={formData.bank_name || ''}
-                        onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
-                        placeholder="Bank Name"
-                        className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg"
-                      />
-                    </div>
-                    <input
-                      type="text"
-                      value={formData.account_number || ''}
-                      onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
-                      placeholder="Account Number"
-                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg"
-                    />
-                    <input
-                      type="text"
-                      value={formData.branch_code || ''}
-                      onChange={(e) => setFormData({ ...formData, branch_code: e.target.value })}
-                      placeholder="Branch Code"
-                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg"
-                    />
-                    <input
-                      type="text"
-                      value={formData.id_number || ''}
-                      onChange={(e) => setFormData({ ...formData, id_number: e.target.value })}
-                      placeholder="ID Number"
-                      className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg"
-                    />
-                  </div>
                 </div>
               </>
             )}
@@ -660,26 +742,16 @@ export default function EditProfilePage() {
                 disabled={loading}
                 className={`flex-1 py-3 px-4 rounded-lg font-semibold text-white transition ${
                   loading
-                    ? 'bg-blue-400 cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg'
+                    ? "bg-blue-400 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg"
                 }`}
               >
-                {loading ? 'Saving...' : 'Save Changes'}
+                {loading ? "Saving..." : "Save Changes"}
               </button>
             </div>
           </form>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="bg-white dark:bg-gray-950 border-t dark:border-gray-800 py-6 text-center">
-        <div className="container mx-auto px-4">
-          <span className="text-lg font-bold text-blue-600 dark:text-blue-400">Brinkify SA</span>
-          <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm">
-            © {new Date().getFullYear()} Connecting skilled workers with homeowners across South Africa.
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }

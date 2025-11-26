@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { UserProfile } from "./page";
+
 import {
   BarChart3,
   Briefcase,
@@ -8,6 +8,7 @@ import {
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
+import type { UserProfile } from "@/utils/types/UserProfile";
 
 interface CompanyProject {
   id: string;

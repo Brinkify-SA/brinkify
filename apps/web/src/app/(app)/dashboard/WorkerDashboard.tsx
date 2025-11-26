@@ -1,7 +1,7 @@
+import type { UserProfile } from "@/utils/types/UserProfile";
 import { Briefcase, MessageSquare, Users, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { UserProfile } from "./page";
 
 export function WorkerDashboard({ user }: { user: UserProfile }) {
   const [stats, setStats] = useState([

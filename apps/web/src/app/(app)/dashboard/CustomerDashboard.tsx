@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import type { UserProfile } from "./page";
 import Link from "next/link";
 import { Home, MessageSquare } from "lucide-react";
+import type { UserProfile } from "@/utils/types/UserProfile";
 
 export function CustomerDashboard({ user }: { user: UserProfile }) {
   const [stats, setStats] = useState([
