@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/utils/supabase/middleware'
 import { createClient } from './utils/supabase/server'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const protectedRoutes = ["/dashboard"]
   
   const supabase = await createClient();
