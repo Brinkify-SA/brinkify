@@ -1,6 +1,7 @@
 import { decodeBase64 } from "@/utils/base64Utils";
 import { cookies } from "next/headers";
 import { createClient } from "@/utils/supabase/server";
+import type { OnboardingFormData } from "@/utils/types/OnboardingFormData";
 
 /**
  * Get the onboarding form data from the request body and store it in the database
@@ -17,25 +18,7 @@ import { createClient } from "@/utils/supabase/server";
     user_id == user.id from the cookie
  */
 
-  //Defining the type for the form data
-interface OnboardingFormData {
-  id: string;
-  email: string;
-  role: "worker" | "customer" | "company";
-  avatar_url: string;
-  address: {
-    country: string;
-    province: string;
-    city: string;
-    street_number: string;
-    street_name: string;
-    postal_code: string;
-  };
-  skills?: string[];
-  bio?: string;
-  company_name?: string;
-  tax_number?: string;
-}
+
 
 export async function POST(request: Request) {
   const encodedProfile = (await cookies()).get("app-user")?.value;
@@ -47,27 +30,6 @@ export async function POST(request: Request) {
 
   const supabase = await createClient();
   const userId = user.id;
-
-  //Update the auth users table
-  const { error: userError } = await supabase
-    .from("users")
-    .update({
-      avatar_url: data.avatar_url || null,
-      role: data.role,
-    })
-    .eq("id", userId);
-
-  if (userError) {
-    return new Response(
-      JSON.stringify({ error: userError.message, lcl: "user_update" }),
-      { status: 400 }
-    );
-  }
-
-  const { error: delAddrError } = await supabase
-    .from("addresses")
-    .delete()
-    .eq("user_id", userId);
 
   const { error: addressError } = await supabase.from("addresses").insert({
     user_id: userId,
@@ -89,20 +51,16 @@ export async function POST(request: Request) {
   let roleError = null;
 
   if (data.role === "worker") {
-    const { error: workerError } = await supabase.from("workers").insert({
-      user_id: userId,
+    const { error: workerError } = await supabase.from("workers").update({
       skills: data.skills || [],
       bio: data.bio || "",
-      avatar_url: data.avatar_url || null,
-    });
+    }).eq("user_id", userId);
     roleError = workerError;
   } else if (data.role === "company") {
-    const { error: companyError } = await supabase.from("companies").insert({
-      user_id: userId,
+    const { error: companyError } = await supabase.from("companies").update({
       company_name: data.company_name || "",
       tax_number: data.tax_number || "",
-      avatar_url: data.avatar_url || null,
-    });
+    }).eq("user_id", userId);
     roleError = companyError;
   }
  
