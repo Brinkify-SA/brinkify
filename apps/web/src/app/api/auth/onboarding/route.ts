@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     roleError = workerError;
   } else if (data.role === "company") {
     const { error: companyError } = await supabase.from("companies").update({
-      company_name: data.company_name || "",
+      name: data.company_name || "",
       tax_number: data.tax_number || "",
     }).eq("user_id", userId);
     roleError = companyError;

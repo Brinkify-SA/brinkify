@@ -1,13 +1,10 @@
 import { Building, Tag } from "lucide-react";
-import {
-  AddressForm,
-  type OnboardingUser,
-  type Address,
-} from "./OnboardingComponent"; // Named import!
+import { AddressForm } from "./OnboardingComponent"; // Named import!
+import type { OnboardingFormData } from "@/utils/types/OnboardingFormData";
 
 interface Props {
-  formData: OnboardingUser;
-  onFormChange: (data: OnboardingUser) => void;
+  formData: OnboardingFormData;
+  onFormChange: (data: OnboardingFormData) => void;
 }
 
 export default function CompanyForm({ formData, onFormChange }: Props) {
@@ -64,7 +61,7 @@ export default function CompanyForm({ formData, onFormChange }: Props) {
       {/* Address */}
       <AddressForm
         address={formData.address}
-        onAddressChange={(address: Address) =>
+        onAddressChange={(address: OnboardingFormData["address"]) =>
           onFormChange({ ...formData, address })
         }
       />
