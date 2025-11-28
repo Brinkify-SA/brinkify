@@ -174,7 +174,7 @@ export default function EditProfilePage() {
           avatar_url: getAvatarUrl(
             profile.first_name + " " + profile.last_name
           ),
-          skills: profile.workers?.skills.split(",") || [],
+          skills: profile.workers?.skills || [],
           bio: profile.workers?.bio || "",
           hourly_rate: profile.hourly_rate || "",
           portfolio: profile.portfolio || [],

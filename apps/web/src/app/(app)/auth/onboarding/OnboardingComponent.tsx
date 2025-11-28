@@ -7,46 +7,9 @@ import WorkerForm from "./WorkerForm";
 import CustomerForm from "./CustomerForm";
 import CompanyForm from "./CompanyForm";
 import { getUserFromCookies } from "@/utils/base64Utils";
+import type { OnboardingFormData } from "@/utils/types/OnboardingFormData";
 
 // Types (exported for forms to import)
-export interface Address {
-  country: string;
-  province: string;
-  city: string;
-  street_number: string;
-  street_name: string;
-  postal_code: string;
-}
-
-export interface BaseUser {
-  id: string;
-  email: string;
-  role: "worker" | "customer" | "company";
-  avatar_url: string;
-  address: Address;
-  company_name?: string;
-  tax_number?: string;
-  skills?: string[];
-  bio?: string;
-}
-
-export interface WorkerUser extends BaseUser {
-  role: "worker";
-  skills: string[];
-  bio: string;
-}
-
-export interface CustomerUser extends BaseUser {
-  role: "customer";
-}
-
-export interface CompanyUser extends BaseUser {
-  role: "company";
-  company_name: string;
-  tax_number: string;
-}
-
-export type OnboardingUser = WorkerUser | CustomerUser | CompanyUser;
 
 export interface Message {
   type: "success" | "error";
@@ -54,11 +17,11 @@ export interface Message {
 }
 
 // Custom Hook (exported if needed elsewhere)
-export function useOnboardingSubmit(formData: OnboardingUser, router: any) {
+export function useOnboardingSubmit(formData: OnboardingFormData, router: any) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
 
-  const validateAndSubmit = (e: React.FormEvent) => {
+  const validateAndSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
 
@@ -73,7 +36,7 @@ export function useOnboardingSubmit(formData: OnboardingUser, router: any) {
 
     // Role-specific validation
     if (formData.role === "worker") {
-      if (!formData.bio.trim() || formData.skills.length === 0) {
+      if (!formData.bio?.trim() || formData.skills?.length === 0) {
         setMessage({
           type: "error",
           text: "Bio and at least one skill are required for workers.",
@@ -81,7 +44,7 @@ export function useOnboardingSubmit(formData: OnboardingUser, router: any) {
         return;
       }
     } else if (formData.role === "company") {
-      if (!formData.company_name.trim() || !formData.tax_number.trim()) {
+      if (!formData.company_name?.trim() || !formData.tax_number?.trim()) {
         setMessage({
           type: "error",
           text: "Company name and tax number are required.",
@@ -92,14 +55,29 @@ export function useOnboardingSubmit(formData: OnboardingUser, router: any) {
 
     setLoading(true);
     try {
-      localStorage.setItem(`profile_${formData.id}`, JSON.stringify(formData));
-      localStorage.setItem("userEmail", formData.email);
-      localStorage.setItem("userId", formData.id);
-      setMessage({
-        type: "success",
-        text: "Onboarding complete! Redirecting to dashboard...",
+      console.log(formData);
+
+      const req = await fetch("/api/auth/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
       });
-      setTimeout(() => router.push("/dashboard"), 1500);
+
+      if (req.status !== 200) {
+        throw new Error("Failed to complete onboarding.");
+        return;
+      }
+
+      const data = await req.json();
+      if (req.ok) {
+        setMessage({
+          type: "success",
+          text: "Onboarding complete! Redirecting to dashboard...",
+        });
+        router.push("/auth/login");
+      }
+
+      //setTimeout(() => router.push("/dashboard"), 1500);
     } catch (err: any) {
       console.error("Error completing onboarding:", err);
       setMessage({
@@ -114,17 +92,17 @@ export function useOnboardingSubmit(formData: OnboardingUser, router: any) {
   return { loading, message, validateAndSubmit };
 }
 
-// Shared: AvatarUpload Component
-
-// Shared: AddressForm Component (NOW EXPORTED!)
 export function AddressForm({
   address,
   onAddressChange,
 }: {
-  address: Address;
-  onAddressChange: (address: Address) => void;
+  address: OnboardingFormData["address"];
+  onAddressChange: (address: OnboardingFormData["address"]) => void;
 }) {
-  const updateField = (field: keyof Address, value: string) => {
+  const updateField = (
+    field: keyof OnboardingFormData["address"],
+    value: string
+  ) => {
     onAddressChange({ ...address, [field]: value });
   };
 
@@ -212,7 +190,7 @@ export default function OnboardingComponent() {
   const [role, setRole] = useState<"worker" | "customer" | "company" | null>(
     null
   );
-  const [formData, setFormData] = useState<OnboardingUser>({
+  const [formData, setFormData] = useState<OnboardingFormData>({
     id: "",
     email: "",
     role: "worker" as const,
@@ -243,9 +221,7 @@ export default function OnboardingComponent() {
     ) as "worker" | "customer" | "company";
     const userEmail =
       localStorage.getItem("userEmail") || `user-${Date.now()}@brinkify.local`;
-    const userId =
-      localStorage.getItem("userId") ||
-      `user-${Math.random().toString(36).substring(7)}`;
+    const userId = appUser.id;
 
     setRole(userRole);
 
@@ -265,17 +241,17 @@ export default function OnboardingComponent() {
       },
     };
 
-    let initializedData: OnboardingUser;
+    let initializedData: OnboardingFormData;
     if (userRole === "worker") {
-      initializedData = { ...base, skills: [], bio: "" } as OnboardingUser;
+      initializedData = { ...base, skills: [], bio: "" } as OnboardingFormData;
     } else if (userRole === "customer") {
-      initializedData = base as OnboardingUser;
+      initializedData = base as OnboardingFormData;
     } else {
       initializedData = {
         ...base,
         company_name: "",
         tax_number: "",
-      } as OnboardingUser;
+      } as OnboardingFormData;
     }
 
     setFormData(initializedData);
