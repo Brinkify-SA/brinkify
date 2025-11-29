@@ -6,8 +6,8 @@ import { Camera, User, MapPin, Home, Building, Tag } from "lucide-react";
 import WorkerForm from "./WorkerForm";
 import CustomerForm from "./CustomerForm";
 import CompanyForm from "./CompanyForm";
-import { getUserFromCookies } from "@/utils/base64Utils";
 import type { OnboardingFormData } from "@/utils/types/OnboardingFormData";
+import { getClientCookie } from "@/utils/client/cookies";
 
 // Types (exported for forms to import)
 
@@ -211,7 +211,7 @@ export default function OnboardingComponent() {
 
   useEffect(() => {
     //get stored data from cookies.
-    const appUser = getUserFromCookies();
+    const appUser = getClientCookie("app-user");
     const roleParam = appUser?.role;
 
     const userRole = (

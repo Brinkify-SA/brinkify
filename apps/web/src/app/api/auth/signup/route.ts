@@ -1,4 +1,4 @@
-import { encodeBase64 } from "@/utils/base64Utils";
+import { encodeBase64 } from "@/utils/base64";
 import { createClient } from "@/utils/supabase/server";
 import { cookies } from "next/headers";
 
