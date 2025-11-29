@@ -1,7 +1,8 @@
-import { decodeBase64 } from "@/utils/base64Utils";
+import { decodeBase64 } from "@/utils/base64";
 import { cookies } from "next/headers";
 import { createClient } from "@/utils/supabase/server";
 import type { OnboardingFormData } from "@/utils/types/OnboardingFormData";
+import { getServerCookie } from "@/utils/server/cookies";
 
 /**
  * Get the onboarding form data from the request body and store it in the database
@@ -21,11 +22,10 @@ import type { OnboardingFormData } from "@/utils/types/OnboardingFormData";
 
 
 export async function POST(request: Request) {
-  const encodedProfile = (await cookies()).get("app-user")?.value;
-  if (!encodedProfile) {
+  const user = await getServerCookie("app-user");
+  if (!user) {
     return new Response(JSON.stringify({ error: "User session not found" }), { status: 401 });
-  }
-  const user = JSON.parse(decodeBase64(encodedProfile)); 
+  } 
   const data: OnboardingFormData = await request.json();
 
   const supabase = await createClient();

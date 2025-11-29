@@ -10,9 +10,9 @@ import Loader from "@/components/loader"; // Assuming a Loader component exists
 import { WorkerDashboard } from "./WorkerDashboard";
 import { CustomerDashboard } from "./CustomerDashboard";
 import { CompanyDashboard } from "./CompanyDashboard";
-import { getUserFromCookies } from "@/utils/base64Utils";
 import { getAvatarUrl } from "@/lib/avatars";
 import type { UserProfile } from "@/utils/types/UserProfile";
+import { getClientCookie } from "@/utils/client/cookies";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -25,7 +25,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchUserProfile = async () => {
       //get user info from cookies
-      let appUser = getUserFromCookies();
+      let appUser = getClientCookie("app-user");
       setLoading(true);
       setError(null);
       try {

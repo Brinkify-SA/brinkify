@@ -1,8 +1,6 @@
-import { encodeBase64 } from "@/utils/base64Utils";
+import { setServerCookie } from "@/utils/server/cookies";
 import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { NextResponse } from "next/server";
+
 
 export const POST = async (request: Request) => {
     const supabase = await createClient();
@@ -43,8 +41,7 @@ export const POST = async (request: Request) => {
     }
 
     //encode profile and save to cookies
-    const encodedProfile = encodeBase64(JSON.stringify(userProfile));
-    (await cookies()).set("app-user", encodedProfile, { path: '/' });
+    await setServerCookie("app-user", userProfile);
 
 
     //check if they already have address filled in, can only be done in onboarding
