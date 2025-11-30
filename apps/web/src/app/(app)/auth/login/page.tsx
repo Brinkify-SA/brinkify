@@ -255,15 +255,12 @@ export default function LoginPage() {
                 >
                   Password
                 </label>
-                <button
-                  type="button"
-                  onClick={() =>
-                    alert("Password reset flow not implemented yet.")
-                  }
+                <Link
+                  href="/auth/forgot-password"
                   className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                 >
                   Forgot password?
-                </button>
+                </Link>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
