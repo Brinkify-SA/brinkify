@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -73,10 +74,10 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      // Mock Google login - default to homeowner for demo
-      const googleEmail = "homeowner@test.com";
-      localStorage.setItem("userEmail", googleEmail);
-      router.push("/dashboard");
+      const supabase = createClient();
+      await supabase.auth.signInWithOAuth({
+        provider: "google",
+      });
     } catch (err) {
       setError("Google login failed. Please try again.");
     } finally {
@@ -254,15 +255,12 @@ export default function LoginPage() {
                 >
                   Password
                 </label>
-                <button
-                  type="button"
-                  onClick={() =>
-                    alert("Password reset flow not implemented yet.")
-                  }
+                <Link
+                  href="/auth/forgot-password"
                   className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                 >
                   Forgot password?
-                </button>
+                </Link>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
