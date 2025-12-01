@@ -88,10 +88,8 @@ export default function SignUpPage() {
     }
   };
 
-  const openPrivacy = () =>
-    window.open("https://brinkifysa.co.za/privacy", "_blank");
-  const openTerms = () =>
-    window.open("https://brinkifysa.co.za/terms", "_blank");
+    const openPrivacy = () => window.open('/privacy', '_blank');
+  const openTerms = () => window.open('/terms', '_blank');
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors">
