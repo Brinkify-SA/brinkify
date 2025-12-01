@@ -17,15 +17,16 @@
     "ios": "expo run:ios"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.2.4",
     "@stripe/stripe-js": "^8.4.0",
     "@supabase/supabase-js": "^2.80.0",
     "dotenv": "^17.2.2",
     "expo": "~54.0.13",
     "next": "16.0.5",
     "react": "19.2.0",
+    "react-dom": "19.2.0",
     "react-native": "0.81.4",
-    "zod": "^4.1.11",
-    "react-dom": "19.2.0"
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.0",
