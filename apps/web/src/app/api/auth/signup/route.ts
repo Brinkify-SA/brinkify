@@ -24,7 +24,7 @@ export const POST = async (request: Request) => {
         first_name,
         last_name,
         email,
-    }).select("*, workers(*), companies(*), customers(*), subscriptions(*), trials(*), addresses(*)").single();
+    }).select("*, workers(*), companies(*), customers(*), subscriptions(*), addresses(*)").single();
 
     if (profileError) {
         return new Response(JSON.stringify({ error: profileError.message, lcl: "profile" }), { status: 400 });
