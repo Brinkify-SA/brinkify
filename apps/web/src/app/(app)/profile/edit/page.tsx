@@ -53,108 +53,12 @@ export default function EditProfilePage() {
     text: string;
   } | null>(null);
 
-  // Mock workers data that matches profile page
-  const mockWorkers = {
-    "2": {
-      id: "2",
-      full_name: "Sarah Worker",
-      email: "worker@test.com",
-      role: "worker" as const,
-      location: "Cape Town, Southern Suburbs",
-      avatar_url: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
-      bio: "Experienced landscaper with 8+ years in the industry. Specialized in garden design and maintenance.",
-      skills: ["Landscaping", "Garden Design", "Pruning", "Soil Preparation"],
-      hourly_rate: "180",
-      portfolio: [
-        {
-          title: "Rose Garden Project",
-          url: "https://images.pexels.com/photos/1105726/pexels-photo-1105726.jpeg?auto=compress&cs=tinysrgb&w=600",
-        },
-        {
-          title: "Lawn Restoration",
-          url: "https://images.pexels.com/photos/3225517/pexels-photo-3225517.jpeg?auto=compress&cs=tinysrgb&w=600",
-        },
-      ],
-      bank_name: "FNB",
-      account_number: "7654321098765",
-      branch_code: "250155",
-      id_number: "9205201234567",
-      preferred_categories: [],
-    },
-    "3": {
-      id: "3",
-      full_name: "Mike Electrician",
-      email: "electrician@test.com",
-      role: "worker" as const,
-      location: "Johannesburg, Sandton",
-      avatar_url: "https://api.dicebear.com/7.x/avataaars/svg?seed=Mike",
-      bio: "Licensed electrician with 12+ years experience. Specializing in residential and commercial wiring.",
-      skills: [
-        "Electrical Wiring",
-        "Circuit Installation",
-        "Safety Compliance",
-        "LED Installation",
-      ],
-      hourly_rate: "250",
-      portfolio: [
-        {
-          title: "Kitchen Rewiring",
-          url: "https://images.pexels.com/photos/2724749/pexels-photo-2724749.jpeg?auto=compress&cs=tinysrgb&w=600",
-        },
-      ],
-      bank_name: "Standard Bank",
-      account_number: "1234567890123",
-      branch_code: "051001",
-      id_number: "8904151234567",
-      preferred_categories: [],
-    },
-    "4": {
-      id: "4",
-      full_name: "Thabo N.",
-      email: "thabo@test.com",
-      role: "worker" as const,
-      location: "Pretoria, Eastwood",
-      avatar_url: "https://api.dicebear.com/7.x/avataaars/svg?seed=Thabo",
-      bio: "Expert plumber with 10+ years experience. Handles everything from basic repairs to complex installations.",
-      skills: [
-        "Plumbing",
-        "Pipe Installation",
-        "Leak Detection",
-        "Bathroom Fitting",
-      ],
-      hourly_rate: "200",
-      portfolio: [
-        {
-          title: "Bathroom Renovation",
-          url: "https://images.pexels.com/photos/1350789/pexels-photo-1350789.jpeg?auto=compress&cs=tinysrgb&w=600",
-        },
-      ],
-      bank_name: "Capitec",
-      account_number: "9876543210987",
-      branch_code: "430000",
-      id_number: "7805091234567",
-      preferred_categories: [],
-    },
-  };
-
-  const mockUsers = {
-    "homeowner@test.com": {
-      id: "1",
-      full_name: "John Homeowner",
-      email: "homeowner@test.com",
-      role: "customer" as const,
-      location: "Johannesburg, Northern Suburbs",
-      avatar_url: "https://api.dicebear.com/7.x/avataaars/svg?seed=John",
-      preferred_categories: ["Electricians", "Plumbers", "Painters"],
-    },
-  };
-
   useEffect(() => {
     const fetchUserProfile = async () => {
       setLoading(true);
       setMessage(null);
       try {
-        // Check if user is a worker
+        //get the user profile from cookies.
         let profile = getClientCookie("app-user");
 
         if (!profile) {
@@ -295,8 +199,17 @@ export default function EditProfilePage() {
     }
 
     try {
-      // For mock data, just show success message
-      // In a real app, this would update the Supabase database
+      const req = await fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...formData }),
+      });
+      const res = await req.json();
+
+      if (!req.ok) {
+        setMessage({ type: "error", text: res.message });
+      }
+
       setMessage({ type: "success", text: "Profile updated successfully!" });
       setTimeout(() => {
         router.push("/dashboard");
