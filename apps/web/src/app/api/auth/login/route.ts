@@ -1,6 +1,8 @@
 import { encodeBase64 } from "@/utils/base64Utils";
 import { createClient } from "@/utils/supabase/server";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { NextResponse } from "next/server";
 
 export const POST = async (request: Request) => {
     const supabase = await createClient();
@@ -40,7 +42,18 @@ export const POST = async (request: Request) => {
         return new Response(JSON.stringify({ error: "User profile not found", lcl: "profile_fetch" }), { status: 400 });
     }
 
+    //encode profile and save to cookies
     const encodedProfile = encodeBase64(JSON.stringify(userProfile));
     (await cookies()).set("app-user", encodedProfile, { path: '/' });
+
+
+    //check if they already have address filled in, can only be done in onboarding
+    //log them out, then redirect them to onboarding
+    if (!userProfile.addresses?.length) {
+        await supabase.auth.signOut();
+        return new Response(JSON.stringify({ message: "Redirecting to user onboarding", redirect: "/auth/onboarding", user: userProfile }), { status: 200 });
+    }
+
+    
     return new Response(JSON.stringify({ message: "User logged in successfully", user: userProfile }), { status: 200 });
 }
