@@ -13,10 +13,6 @@ import {
   Camera,
   X
 } from 'lucide-react';
-// Removed: import { createClient } from '@/lib/supabase/client';
-// Removed: import Loader
-
-// Mock user as customer (for UI consistency only)
 const MOCK_USER = {
   id: 'mock-customer-id',
   full_name: 'Demo User',
@@ -31,12 +27,12 @@ interface JobFormData {
   location: string;
   min_budget?: number;
   max_budget?: number;
+  minBudget?: number; // providing both keys to support different backend naming
+  maxBudget?: number;
   preferred_date?: string;
-  // images removed from functionality; kept only for UI state
-  images: string[]; // Still used for preview simulation
+  images: string[];
 }
 
-// 📋 Job categories (same as Explore page)
 const CATEGORIES = [
   { id: 'electricians', name: 'Electricians', icon: '⚡' },
   { id: 'plumbers', name: 'Plumbers', icon: '💧' },
@@ -62,8 +58,10 @@ export default function PostJobPage() {
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // No loading state needed (no async data fetch)
-  const user = MOCK_USER; // Simulated customer
+  // NEW: loading state to prevent duplicate submissions
+  const [loading, setLoading] = useState(false);
+
+  const user = MOCK_USER;
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
@@ -79,23 +77,19 @@ export default function PostJobPage() {
     router.push('/dashboard');
   };
 
-  // 🖼️ Simulate image selection (no upload)
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length + previewImages.length > 4) {
       setMessage({ type: 'error', text: 'You can upload up to 4 images.' });
       return;
     }
-
-    // Generate fake preview URLs (e.g., from blob or placeholder)
     const fakeUrls = files.map((file) => URL.createObjectURL(file));
     setPreviewImages((prev) => [...prev, ...fakeUrls]);
     setFormData((prev) => ({
       ...prev,
-      images: [...prev.images, ...fakeUrls], // Only for UI; not sent anywhere
+      images: [...prev.images, ...fakeUrls],
     }));
     setMessage({ type: 'success', text: 'Images selected (not uploaded).' });
-    // Reset input
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -107,22 +101,78 @@ export default function PostJobPage() {
     setMessage({ type: 'success', text: 'Image removed.' });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // ====== UPDATED handleSubmit that POSTS to your backend ======
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
 
+    // Frontend validation
     if (!formData.title.trim() || !formData.description.trim() || !formData.category || !formData.location.trim()) {
       setMessage({ type: 'error', text: 'Please fill in all required fields.' });
       return;
     }
 
-    // ✅ Simulate success (no real submission)
-    setMessage({ type: 'success', text: 'Job posted successfully! (Demo mode)' });
-    // Optionally reset form or redirect after delay
-    setTimeout(() => {
-      router.push('/my-jobs');
-    }, 1500);
+    // Prevent duplicate submissions
+    if (loading) return;
+    setLoading(true);
+
+    // Prepare payload — include both naming variants for budgets (min_budget and minBudget)
+    const payload = {
+      title: formData.title.trim(),
+      description: formData.description.trim(),
+      category: formData.category,
+      location: formData.location.trim(),
+      // send both variants so server can accept whichever it expects
+      min_budget: formData.min_budget ?? null,
+      max_budget: formData.max_budget ?? null,
+      minBudget: formData.minBudget ?? formData.min_budget ?? null,
+      maxBudget: formData.maxBudget ?? formData.max_budget ?? null,
+      preferred_date: formData.preferred_date ?? null,
+      // you currently store preview URLs only; server can ignore or use them
+      images: formData.images,
+    };
+
+    try {
+      // IMPORTANT: credentials: 'include' ensures cookies (like "app-user") are sent to the server
+        const res = await fetch('/api/post-job', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // send cookies to server so backend can read user id from cookie
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
+
+      // handle common responses
+      if (res.status === 401) {
+        setMessage({ type: 'error', text: 'You are not authenticated. Please log in.' });
+        setLoading(false);
+        return;
+      }
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        // If server returned an error message, show it
+        setMessage({ type: 'error', text: json?.error || 'Failed to post job. Try again.' });
+        setLoading(false);
+        return;
+      }
+
+      // Success: show message and redirect
+      setMessage({ type: 'success', text: json?.message || 'Job posted successfully.' });
+      setLoading(false);
+
+      // redirect to jobs page (you can change to whatever route)
+      setTimeout(() => router.push('/my-jobs'), 1000);
+    } catch (err) {
+      console.error('Network or unexpected error:', err);
+      setMessage({ type: 'error', text: 'Network error. Please try again.' });
+      setLoading(false);
+    }
   };
+  // ====== end updated handleSubmit ======
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors">
@@ -156,7 +206,6 @@ export default function PostJobPage() {
         </div>
       </header>
 
-      {/* Mobile Menu */}
       {menuOpen && (
         <div className="md:hidden fixed inset-0 z-[60]">
           <div className="absolute inset-0 bg-black/50" onClick={toggleMenu}></div>
@@ -176,7 +225,6 @@ export default function PostJobPage() {
         </div>
       )}
 
-      {/* --- Main Content --- */}
       <main className="flex-grow container mx-auto px-4 py-6 pb-20">
         <div className="max-w-2xl mx-auto">
           {message && (
@@ -281,8 +329,8 @@ export default function PostJobPage() {
                   <input
                     id="minBudget"
                     type="number"
-                    value={formData.min_budget || ''}
-                    onChange={(e) => setFormData({ ...formData, min_budget: parseFloat(e.target.value) || undefined })}
+                    value={(formData.min_budget ?? formData.minBudget) || ''}
+                    onChange={(e) => setFormData({ ...formData, min_budget: parseFloat(e.target.value) || undefined, minBudget: parseFloat(e.target.value) || undefined })}
                     min="0"
                     placeholder="e.g. 500"
                     className="w-full pl-8 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
@@ -296,8 +344,8 @@ export default function PostJobPage() {
                   <input
                     id="maxBudget"
                     type="number"
-                    value={formData.max_budget || ''}
-                    onChange={(e) => setFormData({ ...formData, max_budget: parseFloat(e.target.value) || undefined })}
+                    value={(formData.max_budget ?? formData.maxBudget) || ''}
+                    onChange={(e) => setFormData({ ...formData, max_budget: parseFloat(e.target.value) || undefined, maxBudget: parseFloat(e.target.value) || undefined })}
                     min="0"
                     placeholder="e.g. 1500"
                     className="w-full pl-8 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
@@ -375,15 +423,15 @@ export default function PostJobPage() {
             {/* Submit */}
             <button
               type="submit"
-              className="w-full py-3 px-4 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition"
+              disabled={loading}
+              className="w-full py-3 px-4 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition disabled:opacity-60"
             >
-              Post Job
+              {loading ? 'Posting...' : 'Post Job'}
             </button>
           </form>
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="bg-white dark:bg-gray-950 border-t dark:border-gray-800 py-6 text-center">
         <div className="container mx-auto px-4">
           <span className="text-lg font-bold text-blue-600 dark:text-blue-400">Brinkify SA</span>
