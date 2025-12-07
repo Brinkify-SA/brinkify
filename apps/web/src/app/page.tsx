@@ -17,9 +17,9 @@ export default function LandingPage() {
     router.push(path);
   };
 
-  const openPrivacy = () => window.open('https://brinkifysa.co.za/privacy', '_blank');
-  const openTerms = () => window.open('https://brinkifysa.co.za/terms', '_blank');
-  const openContact = () => (window.location.href = 'mailto:support@brinkifysa.co.za');
+  const openPrivacy = () => window.open('/privacy', '_blank');
+  const openTerms = () => window.open('/terms', '_blank');
+  const openContact = () => (window.location.href = '/contact');
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-black text-gray-900 dark:text-white transition-colors">

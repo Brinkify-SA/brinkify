@@ -1,6 +1,11 @@
-# brinkify-sa
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines Next.js, Self, and more.
+
+# Project Documentation
+
+This project uses shared utility functions to ensure consistent handling of
+authentication, cookies, encoding, and server/client environments.
+
+If you're adding new features, always check [`apps/web/docs/utilities`](./apps/web/docs/README.md) first.
 
 ## Features
 

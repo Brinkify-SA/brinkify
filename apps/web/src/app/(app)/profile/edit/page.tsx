@@ -20,8 +20,8 @@ import {
 } from "lucide-react";
 import Loader from "@/components/loader"; // Assuming a Loader component exists
 import type { UserProfile } from "@/utils/types/UserProfile";
-import { getUserFromCookies } from "@/utils/base64Utils";
 import { getAvatarUrl } from "@/lib/avatars";
+import { getClientCookie } from "@/utils/client/cookies";
 
 export default function EditProfilePage() {
   const router = useRouter();
@@ -155,7 +155,7 @@ export default function EditProfilePage() {
       setMessage(null);
       try {
         // Check if user is a worker
-        let profile = getUserFromCookies();
+        let profile = getClientCookie("app-user");
 
         if (!profile) {
           setMessage({ type: "error", text: "User profile not found." });
@@ -174,7 +174,7 @@ export default function EditProfilePage() {
           avatar_url: getAvatarUrl(
             profile.first_name + " " + profile.last_name
           ),
-          skills: profile.workers?.skills.split(",") || [],
+          skills: profile.workers?.skills || [],
           bio: profile.workers?.bio || "",
           hourly_rate: profile.hourly_rate || "",
           portfolio: profile.portfolio || [],

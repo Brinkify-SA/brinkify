@@ -10,9 +10,9 @@ import Loader from "@/components/loader"; // Assuming a Loader component exists
 import { WorkerDashboard } from "./WorkerDashboard";
 import { CustomerDashboard } from "./CustomerDashboard";
 import { CompanyDashboard } from "./CompanyDashboard";
-import { getUserFromCookies } from "@/utils/base64Utils";
 import { getAvatarUrl } from "@/lib/avatars";
 import type { UserProfile } from "@/utils/types/UserProfile";
+import { getClientCookie } from "@/utils/client/cookies";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -25,7 +25,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchUserProfile = async () => {
       //get user info from cookies
-      let appUser = getUserFromCookies();
+      let appUser = getClientCookie("app-user");
       setLoading(true);
       setError(null);
       try {
@@ -247,28 +247,30 @@ export default function DashboardPage() {
                 </div>
               )}
               {/* Plan Usage */}
-              <div className="mt-2 bg-blue-100/30 border border-blue-300 text-blue-800 p-2 rounded-md text-sm">
-                <p>
-                  <span className="font-bold">{user.plan_name} Plan</span> •{" "}
-                  {user.role === "worker"
-                    ? `${user.job_leads_used || 0} of ${
-                        user.leads_limit || 5
-                      } job leads used`
-                    : user.role === "customer"
-                    ? `Based in ${user.location}` // No leads for customer
-                    : `${user.job_leads_used || 0} of ${
-                        user.leads_limit || 100
-                      } leads used`}
-                </p>
-                {user.role !== "customer" && (
+              {user.role !== "customer" && (
+                <div className="mt-2 bg-blue-100/30 border border-blue-300 text-blue-800 p-2 rounded-md text-sm">
+                  <p>
+                    <span className="font-bold">
+                      {user.plan.name.replace("_", " ").toUpperCase()} Plan
+                    </span>{" "}
+                    •{" "}
+                    {user.role === "worker"
+                      ? `${user.job_leads_used || 0} of ${
+                          user.leads_limit || 5
+                        } job leads used`
+                      : `${user.job_leads_used || 0} of ${
+                          user.leads_limit || 100
+                        } leads used`}
+                  </p>
+
                   <button
                     onClick={() => router.push("/pricing")}
                     className="mt-1 text-sm font-bold text-blue-800 hover:underline"
                   >
                     Upgrade Plan
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
             <div className="mt-4 sm:mt-0">
               <img

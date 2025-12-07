@@ -1,8 +1,7 @@
-import { encodeBase64 } from "@/utils/base64Utils";
+import { setServerCookie } from "@/utils/server/cookies";
 import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { NextResponse } from "next/server";
+import moment from 'moment'
+
 
 export const POST = async (request: Request) => {
     const supabase = await createClient();
@@ -26,10 +25,24 @@ export const POST = async (request: Request) => {
         return new Response(JSON.stringify({ error: error.message, user, lcl: "auth" }), { status: 400 });
     }
     
-    const {data: userProfile, error: profileError} = await supabase.from("users").select("*, workers(*), companies(*), customers(*), subscriptions(*), trials(*), addresses(*)").eq("id", user.user?.id).single();
+const { data: userProfile, error: profileError } = await supabase
+  .from("users")
+  .select(`
+    *,
+    workers(*),
+    companies(*),
+    customers(*),
+    subscriptions(
+      *,
+      subscription_plans(name, user_type, price)
+    ),
+    addresses(*)
+  `)
+  .eq("id", user.user?.id)
+  .single();
     
     if (profileError) {
-        return new Response(JSON.stringify({ error: "Unexpected Error occured", lcl: "profile_fetch" }), { status: 400 });
+        return new Response(JSON.stringify({ error: "Unexpected Error occured", msg: profileError.message, lcl: "profile_fetch" }), { status: 400 });
     }
 
     if (userProfile.workers?.id) {
@@ -42,9 +55,22 @@ export const POST = async (request: Request) => {
         return new Response(JSON.stringify({ error: "User profile not found", lcl: "profile_fetch" }), { status: 400 });
     }
 
+    //if no subscription plan, initialize a free trial plan
+    if (!userProfile.subscriptions && userProfile.role !== "customer") {
+        const { data: plan, error } = await supabase.from("subscription_plans").select().eq("user_type", userProfile.role).eq("price", 0).single();
+        const { data: subscription, error: planError } = await supabase.from("subscriptions").insert({ plan_id: plan?.id, user_id: userProfile.id, start_date: moment(), end_date: moment().add(14, "days"), active: true }).select('*, subscription_plans(name, user_type, price)').single();
+
+        if(planError || error) {
+            return new Response(JSON.stringify({ error: "Unexpected Error occured", msg: planError?.message || error?.message }), { status: 400 });
+        }
+
+        userProfile.subscriptions = subscription;
+    }
+
+    userProfile.plan = userProfile.subscriptions?.subscription_plans;
+    delete userProfile.subscription;
     //encode profile and save to cookies
-    const encodedProfile = encodeBase64(JSON.stringify(userProfile));
-    (await cookies()).set("app-user", encodedProfile, { path: '/' });
+    await setServerCookie("app-user", userProfile);
 
 
     //check if they already have address filled in, can only be done in onboarding

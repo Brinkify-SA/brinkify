@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/utils/supabase/middleware'
 import { createClient } from './utils/supabase/server'
+import { getServerCookie } from './utils/server/cookies';
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const protectedRoutes = ["/dashboard"]
   
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
+  const cookieUser = await getServerCookie("app-user");
+
+  //check if the cookies for the user are not set, then log the user out to login and set the cookies.
+  if (user && !cookieUser) {
+    await supabase.auth.signOut();
+  }
 
   //protect routes, redirect to login if accessing dashboard while unauthenticated
   if (!user && request.nextUrl.pathname.startsWith("/dashboard"))

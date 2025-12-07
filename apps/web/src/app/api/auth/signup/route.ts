@@ -1,4 +1,4 @@
-import { encodeBase64 } from "@/utils/base64Utils";
+import { encodeBase64 } from "@/utils/base64";
 import { createClient } from "@/utils/supabase/server";
 import { cookies } from "next/headers";
 
@@ -24,7 +24,7 @@ export const POST = async (request: Request) => {
         first_name,
         last_name,
         email,
-    }).select("*, workers(*), companies(*), customers(*), subscriptions(*), trials(*), addresses(*)").single();
+    }).select("*, workers(*), companies(*), customers(*), subscriptions(*), addresses(*)").single();
 
     if (profileError) {
         return new Response(JSON.stringify({ error: profileError.message, lcl: "profile" }), { status: 400 });

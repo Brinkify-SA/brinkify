@@ -5,7 +5,6 @@ export interface UserProfile {
   avatar_url: string;
   location: string;
   is_verified: boolean;
-  plan_name: string;
   team_size?: number;
   job_leads_used?: number;
   leads_limit?: number;
@@ -30,6 +29,10 @@ export interface UserProfile {
 
   // Address data (array)
   addresses: Address[];
+  plan: {
+    name: string;
+    price: number;
+  }
 }
 
 interface Worker {
