@@ -67,40 +67,46 @@ export default function JobsPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
-    const fetchUserDataAndJobs = async () => {
+    const fetchJobsFromAPI = async () => {
       setLoading(true);
       setError(null);
       try {
-        // Mock user data
-        const mockUsers: { [key: string]: UserProfile } = {
-          'worker@test.com': {
-            id: '2',
-            full_name: 'Sarah Worker',
-            role: 'worker',
-            location: 'Cape Town, SA',
-            plan_name: 'Professional',
-            job_leads_used: 15,
-            leads_limit: 50,
-          },
-          'homeowner@test.com': {
-            id: '1',
-            full_name: 'John Homeowner',
-            role: 'customer',
-            location: 'Johannesburg, SA',
-            plan_name: 'Premium',
-            job_leads_used: 0,
-            leads_limit: 0,
-          },
-        };
+        // Fetch jobs from the real API feed endpoint
+        const response = await fetch('/api/feed', {
+          credentials: 'include',
+        });
 
-        // Get logged-in user email from localStorage
-        const storedEmail = localStorage.getItem('userEmail') || 'homeowner@test.com';
-        const profile = mockUsers[storedEmail] || mockUsers['homeowner@test.com'];
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-        setUser(profile as UserProfile);
+        const jobsData = await response.json();
+        setJobs(jobsData);
 
-        // Mock jobs data
-        const mockJobs: Job[] = [
+        // Set dummy user (will be fetched from auth in real implementation)
+        setUser({
+          id: '1',
+          full_name: 'User',
+          role: 'worker',
+          location: 'South Africa',
+          plan_name: 'Professional',
+          job_leads_used: 0,
+          leads_limit: 50,
+        });
+
+      } catch (err: any) {
+        console.error('Error loading jobs:', err);
+        setError(err.message || 'Failed to load jobs.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJobsFromAPI();
+  }, [router]);
+
+  // Legacy code - keeping for reference but not used anymore
+  const mockJobsDataUnused: Job[] = [
           {
             id: '1',
             title: 'Kitchen Renovation',
@@ -273,17 +279,14 @@ export default function JobsPage() {
           },
         ];
 
-        // Filter jobs based on role
-        let fetchedJobs: Job[] = [];
-        if (profile.role === 'worker') {
-          // Worker sees open jobs
-          fetchedJobs = mockJobs.filter(job => job.status === 'open');
-        } else if (profile.role === 'customer') {
-          // Customer sees their own jobs
-          fetchedJobs = mockJobs.filter(job => job.customer_id === profile.id);
-        }
+        // Filter jobs based on role - NOT USED ANYMORE, using API instead
+        // let fetchedJobs: Job[] = [];
+        // if (profile.role === 'worker') {
+        //   fetchedJobs = mockJobs.filter(job => job.status === 'open');
+        // } else if (profile.role === 'customer') {
+        //   fetchedJobs = mockJobs.filter(job => job.customer_id === profile.id);
+        // }
 
-        setJobs(fetchedJobs);
       } catch (err: any) {
         console.error('Error loading jobs:', err);
         setError(err.message || 'Failed to load jobs.');
@@ -291,8 +294,6 @@ export default function JobsPage() {
         setLoading(false);
       }
     };
-
-    fetchUserDataAndJobs();
   }, []);
 
   const toggleMenu = () => setMenuOpen(!menuOpen);

@@ -164,8 +164,8 @@ export default function PostJobPage() {
       setMessage({ type: 'success', text: json?.message || 'Job posted successfully.' });
       setLoading(false);
 
-      // redirect to jobs page (you can change to whatever route)
-      setTimeout(() => router.push('/my-jobs'), 1000);
+      // redirect to feed so the newly posted job is visible immediately
+      setTimeout(() => router.push('/feed'), 1000);
     } catch (err) {
       console.error('Network or unexpected error:', err);
       setMessage({ type: 'error', text: 'Network error. Please try again.' });

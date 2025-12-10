@@ -103,20 +103,62 @@ export default function ExplorePage() {
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [savedPosts, setSavedPosts] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'recent' | 'trending' | 'top-rated'>('recent');
-  const [localFeedPosts, setLocalFeedPosts] = useState<any[]>([]);
+  const [completedJobs, setCompletedJobs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const categories = ['All', 'Electricians', 'Gardeners', 'Painters', 'Tilers', 'Plumbers'];
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('feedPosts');
-      if (stored) setLocalFeedPosts(JSON.parse(stored));
-    } catch (e) {
-      console.warn('Invalid feedPosts in localStorage');
-    }
+    const fetchCompletedJobs = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch('/api/explore', {
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const jobs = await response.json();
+        // Convert jobs to feed post format
+        const feedPosts = jobs.map((job: any) => ({
+          id: job.id,
+          worker: {
+            id: job.user?.id || 'unknown',
+            name: job.user?.full_name || 'Anonymous',
+            avatar: job.user?.avatar_url || '/default-avatar.png',
+            rating: 4.5, // Default rating
+          },
+          title: job.title,
+          category: job.category || 'General',
+          location: job.location,
+          description: job.description,
+          images: job.images || [],
+          likes: 0,
+          comments: 0,
+          views: 0,
+          saves: 0,
+          createdAt: job.created_at,
+          completionTime: '—',
+          price: job.max_budget ? `ZAR ${job.max_budget}` : 'Contact for quote',
+          verified: true,
+        }));
+        setCompletedJobs(feedPosts);
+      } catch (err: any) {
+        console.error('Error loading completed jobs:', err);
+        setError(err.message || 'Failed to load completed jobs.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCompletedJobs();
   }, []);
 
-  const allPosts = [...localFeedPosts, ...MOCK_FEED_POSTS];
+  const allPosts = completedJobs;
 
   const filteredPosts = allPosts.filter(post => {
     const matchesCategory = selectedCategory === 'All' || post.category === selectedCategory;
@@ -155,28 +197,18 @@ export default function ExplorePage() {
     }));
   };
 
-  const prevImage = (postId: string) => {
+  const prevImage = (postId: string, imageCount: number) => {
     setCurrentImageIndex(prev => ({
       ...prev,
-      [postId]: ((prev[postId] || 0) - 1 + (MOCK_FEED_POSTS.find(p => p.id === postId)?.images.length || 1)) % (MOCK_FEED_POSTS.find(p => p.id === postId)?.images.length || 1)
+      [postId]: ((prev[postId] || 0) - 1 + imageCount) % imageCount
     }));
   };
 
   const deletePost = (postId: string, e: React.MouseEvent) => {
+    // Completed jobs from API cannot be deleted, so this is a no-op
     e.preventDefault();
     e.stopPropagation();
-    try {
-      const raw = localStorage.getItem('feedPosts');
-      let feed: any[] = [];
-      if (raw) {
-        try { feed = JSON.parse(raw); } catch { feed = []; }
-      }
-      const remaining = feed.filter(p => p.id !== postId);
-      localStorage.setItem('feedPosts', JSON.stringify(remaining));
-      setLocalFeedPosts(remaining);
-    } catch (err) {
-      console.warn('Failed to delete post', err);
-    }
+    console.log('Cannot delete completed jobs from API');
   };
 
   const openPrivacy = () => window.open('https://brinkifysa.co.za/privacy', '_blank');
@@ -248,7 +280,25 @@ export default function ExplorePage() {
       {/* FEED */}
       <main className="flex-grow py-8 px-4">
         <div className="max-w-4xl mx-auto space-y-8">
-          {filteredPosts.map((post) => {
+          {loading && (
+            <div className="text-center py-12">
+              <p className="text-gray-600 dark:text-gray-400">Loading completed projects...</p>
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 p-4 rounded-lg">
+              <p>Error: {error}</p>
+            </div>
+          )}
+
+          {!loading && filteredPosts.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-600 dark:text-gray-400">No completed projects found.</p>
+            </div>
+          )}
+
+          {!loading && filteredPosts.map((post) => {
             const images: string[] = Array.isArray(post.images) ? post.images : [];
             const workerObj = post.worker ?? { id: post.workerId ?? 'unknown', name: post.workerName ?? 'Worker', avatar: post.worker?.avatar ?? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(post.workerName ?? 'W')}`, rating: post.worker?.rating ?? 0 };
             const canManage = post.isLocal && post.createdByEmail && post.createdByEmail === localStorage.getItem('userEmail');
