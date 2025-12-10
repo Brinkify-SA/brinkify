@@ -72,12 +72,7 @@ export default function EditProfilePage() {
 
         const profile = await response.json();
 
-        setUser({
-          id: profile.id,
-          full_name: profile.full_name || '',
-          email: profile.email || '',
-          role: profile.role || 'worker',
-        });
+        setUser(profile as any);
 
         setFormData({
           id: profile.id,
@@ -96,11 +91,11 @@ export default function EditProfilePage() {
           id_number: profile.id_number || '',
           preferred_categories: profile.preferred_categories || [],
         });
-      } catch (err: any) {
+      } catch (err) {
         console.error("Error fetching user profile:", err);
         setMessage({
           type: "error",
-          text: err.message || "Failed to load user profile.",
+          text: (err as any)?.message || "Failed to load user profile.",
         });
       } finally {
         setLoading(false);
@@ -141,11 +136,11 @@ export default function EditProfilePage() {
           setLoading(false);
         };
         fileReader.readAsDataURL(file);
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error updating avatar:", error);
         setMessage({
           type: "error",
-          text: error.message || "Failed to update avatar.",
+          text: (error as any)?.message || "Failed to update avatar.",
         });
         setLoading(false);
       }
@@ -237,11 +232,11 @@ export default function EditProfilePage() {
       setTimeout(() => {
         router.push("/dashboard");
       }, 1000);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error updating profile:", err);
       setMessage({
         type: "error",
-        text: err.message || "Failed to update profile. Please try again.",
+        text: (err as any)?.message || "Failed to update profile. Please try again.",
       });
     } finally {
       setLoading(false);

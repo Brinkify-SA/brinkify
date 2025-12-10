@@ -147,9 +147,9 @@ export default function ExplorePage() {
           verified: true,
         }));
         setCompletedJobs(feedPosts);
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error loading completed jobs:', err);
-        setError(err.message || 'Failed to load completed jobs.');
+        setError((err as any)?.message || 'Failed to load completed jobs.');
       } finally {
         setLoading(false);
       }
@@ -343,7 +343,7 @@ export default function ExplorePage() {
                       }
                       const remaining = feed.filter(p => p.id !== post.id);
                       localStorage.setItem('feedPosts', JSON.stringify(remaining));
-                      setLocalFeedPosts(remaining);
+                      setCompletedJobs(remaining);
                     }}
                     title="Delete post"
                     className="ml-3 text-gray-400 hover:text-red-500 transition"

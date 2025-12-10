@@ -124,9 +124,9 @@ export default function PublicProfilePage() {
           portfolio: profile.portfolio || [],
           reviews_count: profile.reviews_count || 0,
         });
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error loading worker profile:', err);
-        setError(err.message || 'Failed to load worker profile.');
+        setError((err as any)?.message || 'Failed to load worker profile.');
       } finally {
         setLoading(false);
       }

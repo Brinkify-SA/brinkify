@@ -70,9 +70,9 @@ export default function MyJobsPage() {
         // Set dummy user (will be fetched from auth in real implementation)
         setUser({ id: '1', full_name: 'User', role: 'customer' });
 
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error loading user jobs:', err);
-        setError(err.message || 'Failed to load jobs.');
+        setError((err as any)?.message || 'Failed to load jobs.');
       } finally {
         setLoading(false);
       }

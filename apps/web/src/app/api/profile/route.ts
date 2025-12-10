@@ -144,13 +144,9 @@ export async function PATCH(request: NextRequest) {
  * POST /api/profile - Legacy endpoint (for backward compatibility)
  * Redirects to PATCH with same data
  */
-export const POST = async (request: Request) => { 
-    //GOAL: update the profile of the logged in user - NOW USING PATCH INSTEAD
-    }
-
-    if(profileError) {
-        return new Response(JSON.stringify({ error: profileError.message }), { status: 400 });
-    }
-
-    return new Response(JSON.stringify({ data: profileData }), { status: 200 });
-}
+export const POST = async (request: Request) => {
+  return new Response(
+    JSON.stringify({ error: 'Method not allowed. Use PATCH to update profile.' }),
+    { status: 405 }
+  );
+};

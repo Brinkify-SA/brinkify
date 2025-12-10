@@ -1,16 +1,23 @@
 import { createClient } from "@/utils/supabase/server";
+import type { NextRequest } from "next/server";
 
 /**
  * GET /api/profile/[id] - Fetch a specific user's public profile
  * Returns the user profile data (public fields only)
  */
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: any
 ) {
   try {
     const supabase = await createClient();
-    const userId = params.id;
+
+    // Normalize params: Next's types sometimes make params a Promise in build-time checks
+    let params = context?.params;
+    if (params && typeof params.then === 'function') {
+      params = await params;
+    }
+    const userId = params?.id as string;
 
     // Fetch user profile
     const { data: profile, error } = await supabase
