@@ -1,72 +1,96 @@
 import { createClient } from "@/utils/supabase/server";
 
-/**
- * GET API endpoint to fetch jobs for the feed page
- * Returns all active jobs with their images and user information
- */
 export async function GET() {
+  const supabase = await createClient();
+
   try {
-    // Create Supabase client
-    const supabase = await createClient();
-    
-    // Fetch jobs with related data
     const { data: jobs, error } = await supabase
-      .from('jobs')
+      .from("jobs")
       .select(`
         id,
         title,
         description,
         category,
         location,
-        budget_min,
-        budget_max,
+        min_price,
+        max_price,
+        open,
         created_at,
-        status,
-        user_id,
-        job_images (image_url),
-        users (id, full_name, avatar_url)
+        customers (
+          id,
+          user_id,
+          users (
+            id,
+            first_name,
+            last_name,
+          )
+        ),
+        job_images (
+          id,
+          url
+        )
       `)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false });
-    
-    // Handle database error
+      .eq("open", true)
+      .order("created_at", { ascending: false });
+
     if (error) {
-      console.error('Database error fetching jobs:', error);
-      return new Response(
-        JSON.stringify({ error: "Failed to fetch jobs", details: error.message }),
-        { status: 500 }
-      );
+      console.error("Supabase error fetching feed:", error);
+      return Response.json({ error: error.message }, { status: 500 });
     }
-    
-    // Format the data for the frontend
-    const formattedJobs = jobs.map(job => ({
-      id: job.id,
-      title: job.title,
-      description: job.description,
-      category: job.category,
-      location: job.location,
-      budget_min: job.budget_min,
-      budget_max: job.budget_max,
-      created_at: job.created_at,
-      images: job.job_images || [],
-      user: {
-        id: job.users?.[0]?.id || job.user_id,
-        full_name: job.users?.[0]?.full_name || 'Anonymous',
-        avatar_url: job.users?.[0]?.avatar_url || '/default-avatar.png'
+
+    const feed = (jobs || []).map((job: any) => {
+      // Extract profile data through the relationship chain
+      const customerData = job.customers?.[0];
+      const userData = customerData?.users?.[0];
+      //const profileData = userData?.profiles?.[0]; Ignored for now beacuse profile is not functional yet on my side
+      
+      // Safe extraction of images
+      const images = Array.isArray(job.job_images)
+        ? job.job_images.map((img: any) => img.url).filter(Boolean)
+        : [];
+
+      // Format price display
+      let priceDisplay = "Negotiable";
+      if (job.min_price !== null && job.max_price !== null) {
+        priceDisplay = `R${job.min_price} - R${job.max_price}`;
+      } else if (job.min_price !== null) {
+        priceDisplay = `R${job.min_price}`;
       }
-    }));
+
+      return {
+        id: job.id,
+        title: job.title ?? "Untitled",
+        description: job.description ?? "",
+        category: job.category ?? "",
+        location: job.location ?? "",
+        price: priceDisplay,
+        createdAt: job.created_at,
+        //verified: Boolean(profileData),
+        images,
+        
     
-    console.log(`Returning ${formattedJobs.length} jobs to feed`);
-    
-    return new Response(JSON.stringify(formattedJobs), { status: 200 });
-  } catch (error) {
-    console.error("Unexpected error in feed API:", error);
-    return new Response(
-      JSON.stringify({ 
-        error: "Internal server error", 
-        details: error instanceof Error ? error.message : "Unknown error"
-      }),
-      { status: 500 }
-    );
+        likes: 0,
+        comments: 0,
+        saves: 0,
+        views: 0,
+        tags: [],
+        
+        //customer or home owner data with fallbacks
+        customer: userData
+          ? {
+              id: userData.id,
+              name: `${userData.first_name ?? ""} ${userData.last_name ?? ""}`.trim() || "Customer",
+            }
+          : {
+              id: "unknown",
+              name: "Anonymous",
+            },
+      };
+    });
+
+    return Response.json(feed);
+  } catch (err: any) {
+    console.error("Unexpected error in /api/feed:", err);
+    return Response.json({ error: err.message ?? "Unknown error" }, { status: 500 });
   }
 }

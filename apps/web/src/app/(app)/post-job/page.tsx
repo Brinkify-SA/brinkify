@@ -27,9 +27,9 @@ interface JobFormData {
   location: string;
   min_budget?: number;
   max_budget?: number;
-  minBudget?: number; // providing both keys to support different backend naming
+  minBudget?: number; //providing both keys to support different backend naming
   maxBudget?: number;
-  preferred_date?: string;
+  date?: string;
   images: string[];
 }
 
@@ -60,9 +60,7 @@ export default function PostJobPage() {
 
   // NEW: loading state to prevent duplicate submissions
   const [loading, setLoading] = useState(false);
-
   const user = MOCK_USER;
-
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const navigate = (path: string) => {
     setMenuOpen(false);
@@ -127,7 +125,7 @@ export default function PostJobPage() {
       max_budget: formData.max_budget ?? null,
       minBudget: formData.minBudget ?? formData.min_budget ?? null,
       maxBudget: formData.maxBudget ?? formData.max_budget ?? null,
-      preferred_date: formData.preferred_date ?? null,
+      date : formData.date  ?? null,
       // you currently store preview URLs only; server can ignore or use them
       images: formData.images,
     };
@@ -139,7 +137,7 @@ export default function PostJobPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        // send cookies to server so backend can read user id from cookie
+        //send cookies to server so backend can read user id from cookie
         credentials: 'include',
         body: JSON.stringify(payload),
       });
@@ -364,8 +362,8 @@ export default function PostJobPage() {
                 <input
                   id="preferredDate"
                   type="date"
-                  value={formData.preferred_date || ''}
-                  onChange={(e) => setFormData({ ...formData, preferred_date: e.target.value })}
+                  value={formData.date  || ''}
+                  onChange={(e) => setFormData({ ...formData, date : e.target.value })}
                   min={new Date().toISOString().split('T')[0]}
                   className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                 />
