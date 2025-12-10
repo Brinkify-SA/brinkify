@@ -159,9 +159,9 @@ export default function MessagesPage() {
             console.warn('Failed to load help request conversations', e);
           }
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error loading conversations:', err);
-        setError(err.message || 'Failed to load messages.');
+        setError((err as any)?.message || 'Failed to load messages.');
       } finally {
         setLoading(false);
       }
@@ -203,7 +203,7 @@ export default function MessagesPage() {
 
       // Refresh page
       window.location.reload();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error deleting conversation:', err);
     }
   };

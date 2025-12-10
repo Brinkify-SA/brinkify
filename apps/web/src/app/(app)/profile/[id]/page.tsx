@@ -96,19 +96,37 @@ export default function PublicProfilePage() {
           return;
         }
 
-        // Get mock worker data
-        const profile = mockWorkers[profileId];
+        // Fetch from real API
+        const response = await fetch(`/api/profile/${profileId}`);
 
-        if (!profile) {
-          setError('Worker profile not found.');
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError('Worker profile not found.');
+          } else {
+            setError('Failed to load worker profile.');
+          }
           setLoading(false);
           return;
         }
 
-        setWorker(profile as UserProfile);
-      } catch (err: any) {
+        const profile = await response.json();
+
+        setWorker({
+          id: profile.id,
+          full_name: profile.full_name || 'Anonymous',
+          avatar_url: profile.avatar_url || '/default-avatar.png',
+          location: profile.location || '',
+          role: profile.role || 'worker',
+          bio: profile.bio,
+          skills: profile.skills || [],
+          hourly_rate: profile.hourly_rate,
+          average_rating: profile.average_rating || 0,
+          portfolio: profile.portfolio || [],
+          reviews_count: profile.reviews_count || 0,
+        });
+      } catch (err) {
         console.error('Error loading worker profile:', err);
-        setError(err.message || 'Failed to load worker profile.');
+        setError((err as any)?.message || 'Failed to load worker profile.');
       } finally {
         setLoading(false);
       }

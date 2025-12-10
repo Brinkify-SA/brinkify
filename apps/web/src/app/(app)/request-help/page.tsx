@@ -99,9 +99,9 @@ export default function RequestHelpPage() {
       setRequests(prev => [req, ...prev]);
       setTitle(''); setDescription(''); setSkills(''); setLocation(''); setBudget(''); setDeadline('');
       setMessage({ type: 'success', text: 'Help request created — other workers will see it.' });
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setMessage({ type: 'error', text: 'Failed to create request.' });
+      setMessage({ type: 'error', text: (err as any)?.message || 'Failed to create request.' });
     }
   };
 

@@ -86,9 +86,9 @@ export default function MessageThreadPage() {
 
         setError('Conversation not found.');
         setLoading(false);
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error loading conversation:', err);
-        setError(err.message || 'Failed to load conversation.');
+        setError((err as any)?.message || 'Failed to load conversation.');
         setLoading(false);
       }
     };
@@ -167,9 +167,9 @@ export default function MessageThreadPage() {
       }
 
       router.push('/messages');
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error deleting conversation:', err);
-      setError('Failed to delete conversation.');
+      setError((err as any)?.message || 'Failed to delete conversation.');
     }
   };
 

@@ -40,74 +40,45 @@ export default function MyJobsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchUserDataAndJobs = () => {
+    const fetchUserJobsFromAPI = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        // Mock users (use localStorage.userEmail to pick)
-        const mockUsers: { [key: string]: UserProfile } = {
-          'homeowner@test.com': { id: '1', full_name: 'John Homeowner', role: 'customer' },
-          'worker@test.com': { id: '2', full_name: 'Sarah Worker', role: 'worker' },
-        };
-
-        const storedEmail = localStorage.getItem('userEmail') || 'homeowner@test.com';
-        const profile = mockUsers[storedEmail] || mockUsers['homeowner@test.com'];
-        setUser(profile as UserProfile);
-
-        // Seed some jobs locally (will be merged with persisted `myJobs` key)
-        const seedCurrent: Job[] = [
-          { id: 'job-2', title: 'Bathroom Tiling', location: 'Johannesburg, SA', min_budget: 4500, max_budget: 9000, created_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), status: 'in-progress', customer_id: '9', worker_id: '2', profiles_customer: [{ full_name: 'Robert Taylor' }] },
-          { id: 'job-3', title: 'Electrical Wiring Installation', location: 'Cape Town, SA', min_budget: 6000, max_budget: 10000, created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), status: 'assigned', customer_id: '4', worker_id: undefined, profiles_customer: [{ full_name: 'Jane Smith' }] },
-        ];
-
-        const seedHistory: Job[] = [
-          { id: 'job-1', title: 'Kitchen Renovation', location: 'Cape Town, SA', min_budget: 15000, max_budget: 22000, created_at: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(), status: 'completed', customer_id: '1', worker_id: '2', profiles_customer: [{ full_name: 'John Homeowner' }], reviews: [{ rating: 4.8 }] },
-        ];
-
-        // Load persisted jobs (if any)
-        const raw = localStorage.getItem('myJobs');
-        let persisted: Job[] = [];
-        if (raw) {
-          try { persisted = JSON.parse(raw); } catch { persisted = []; }
-        }
-
-        // Merge persisted into seeds
-        const mergedCurrent = [...seedCurrent];
-        const mergedHistory = [...seedHistory];
-        persisted.forEach(p => {
-          const curIdx = mergedCurrent.findIndex(m => m.id === p.id);
-          const histIdx = mergedHistory.findIndex(m => m.id === p.id);
-          if (curIdx >= 0) mergedCurrent[curIdx] = p;
-          else if (histIdx >= 0) mergedHistory[histIdx] = p;
-          else {
-            // place based on status
-            if (p.status === 'completed') mergedHistory.unshift(p);
-            else mergedCurrent.unshift(p);
-          }
+        // Fetch jobs from the real API
+        const response = await fetch('/api/user-jobs', {
+          credentials: 'include',
         });
 
-        if (profile.role === 'worker') {
-          const currentJobsData = mergedCurrent.filter(j => j.worker_id === profile.id || (j.profiles_worker || []).some(w => w.full_name === profile.full_name));
-          const historyJobsData = mergedHistory.filter(j => j.worker_id === profile.id || (j.profiles_worker || []).some(w => w.full_name === profile.full_name));
-          setCurrentJobs(currentJobsData);
-          setJobHistory(historyJobsData);
-        } else {
-          const currentJobsData = mergedCurrent.filter(j => j.customer_id === profile.id);
-          const historyJobsData = mergedHistory.filter(j => j.customer_id === profile.id);
-          setCurrentJobs(currentJobsData);
-          setJobHistory(historyJobsData);
+        if (!response.ok) {
+          if (response.status === 401) {
+            router.push('/auth/login');
+            return;
+          }
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-      } catch (err: any) {
-        console.error('Error loading jobs:', err);
-        setError(err.message || 'Failed to load jobs.');
+        const jobs = await response.json();
+
+        // Separate into current and completed jobs
+        const current = jobs.filter((j: Job) => j.status !== 'completed');
+        const history = jobs.filter((j: Job) => j.status === 'completed');
+
+        setCurrentJobs(current);
+        setJobHistory(history);
+
+        // Set dummy user (will be fetched from auth in real implementation)
+        setUser({ id: '1', full_name: 'User', role: 'customer' });
+
+      } catch (err) {
+        console.error('Error loading user jobs:', err);
+        setError((err as any)?.message || 'Failed to load jobs.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUserDataAndJobs();
+    fetchUserJobsFromAPI();
   }, [router]);
 
   const toggleMenu = () => setMenuOpen(!menuOpen);

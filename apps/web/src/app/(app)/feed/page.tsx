@@ -283,6 +283,8 @@ export default function FeedPage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isHomeowner, setIsHomeowner] = useState(false);
+  const [posts, setPosts] = useState<FeedPost[]>(MOCK_FEED_POSTS);
+  const [loadingPosts, setLoadingPosts] = useState(true);
 
   // Updated category list to match post categories
   const categories = [
@@ -302,13 +304,59 @@ export default function FeedPage() {
     setIsHomeowner(email ? !email.includes('worker') : false);
   }, []);
 
+  // Fetch jobs from server feed API
+  useEffect(() => {
+    let mounted = true;
+    const fetchJobs = async () => {
+      try {
+        const res = await fetch('/api/feed');
+        if (!res.ok) throw new Error('Failed to fetch feed');
+        const data = await res.json();
+        if (!mounted) return;
+        // Map API shape to FeedPost shape (best-effort)
+        const mapped: FeedPost[] = data.map((j: any) => ({
+          id: j.id,
+          workerId: j.user?.id || j.customer_id || 'unknown',
+          title: j.title,
+          description: j.description,
+          category: j.category,
+          location: j.location,
+          images: Array.isArray(j.images) ? j.images : [],
+          tags: [],
+          price: j.min_budget || j.max_budget ? `R${j.min_budget || ''}${j.max_budget ? ' - R' + j.max_budget : ''}` : 'Price on request',
+          completionTime: '',
+          likes: 0,
+          comments: 0,
+          saves: 0,
+          views: 0,
+          createdAt: j.created_at || new Date().toISOString(),
+          verified: false,
+          worker: {
+            id: j.user?.id || j.customer_id || 'unknown',
+            name: j.user?.full_name || 'Anonymous',
+            avatar: j.user?.avatar_url || '/default-avatar.png',
+            rating: 0,
+            reviews: 0,
+          }
+        }));
+        setPosts(mapped);
+      } catch (err) {
+        console.error('Error loading feed jobs:', err);
+      } finally {
+        if (mounted) setLoadingPosts(false);
+      }
+    };
+    fetchJobs();
+    return () => { mounted = false; };
+  }, []);
+
   const getSubscriptionTier = (workerId: string): number => {
     const tier = WORKER_SUBSCRIPTIONS[workerId] || 'basic';
     const tierRanking = { 'elite': 3, 'premium': 2, 'basic': 1 };
     return tierRanking[tier];
   };
 
-  const filteredPosts = MOCK_FEED_POSTS.filter(post => {
+  const filteredPosts = posts.filter(post => {
     const matchesCategory = selectedCategory === 'All' || post.category === selectedCategory;
     const matchesSearch = post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           post.worker.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

@@ -78,11 +78,11 @@ export function useOnboardingSubmit(formData: OnboardingFormData, router: any) {
       }
 
       //setTimeout(() => router.push("/dashboard"), 1500);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error completing onboarding:", err);
       setMessage({
         type: "error",
-        text: "Failed to complete onboarding. Please try again.",
+        text: (err as any)?.message || "Failed to complete onboarding. Please try again.",
       });
     } finally {
       setLoading(false);

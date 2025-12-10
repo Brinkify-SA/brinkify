@@ -1,25 +1,17 @@
 import { createClient } from "@/utils/supabase/server";  
-import { cookies } from "next/headers";                 
-import { v4 as uuidv4 } from "uuid";                     
-
-
-function decodeBase64(str: string) {
-  return Buffer.from(str, "base64").toString("utf-8"); 
-}
+import { v4 as uuidv4 } from "uuid";
 
 export const POST = async (req: Request) => {
 
   const supabase = await createClient();
   const body = await req.json();
-  const cookieStore = await cookies();                                  
-  const encodedProfile = cookieStore.get("app-user")?.value;      
-
-  //parse user session
-  if (!encodedProfile) {
+  
+  // Get the authenticated user from Supabase Auth
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  
+  if (!authUser) {
     return new Response(JSON.stringify({ error: "User not authenticated" }), { status: 401 });
   }
-
-  const user = JSON.parse(decodeBase64(encodedProfile));   
 
   //Validate required fields before storing
   if (!body.title || !body.description || !body.category || !body.location) {
@@ -29,18 +21,54 @@ export const POST = async (req: Request) => {
     );
   }
 
+  // Ensure customer exists using service role (bypass RLS)
+  const serviceSupabase = await createClient();
+  
+  // Check if customer exists
+  const { data: customerExists } = await serviceSupabase
+    .from("customers")
+    .select("id", { count: "exact" })
+    .eq("user_id", authUser.id)
+    .single();
+
+  if (!customerExists) {
+    // Insert customer with service role to bypass RLS
+    const { error: customerError } = await serviceSupabase
+      .from("customers")
+      .insert({
+        user_id: authUser.id,
+      });
+
+    if (customerError) {
+      console.log("Customer creation failed:", customerError);
+      return new Response(JSON.stringify({ error: "Failed to create customer record" }), { status: 400 });
+    }
+  }
+
+  // Get the customer ID for this user
+  const { data: customer } = await serviceSupabase
+    .from("customers")
+    .select("id")
+    .eq("user_id", authUser.id)
+    .single();
+
+  if (!customer) {
+    return new Response(JSON.stringify({ error: "Failed to retrieve customer ID" }), { status: 400 });
+  }
+
   //Store Jobs data
   const { data: newJob, error: jobError } = await supabase
     .from("jobs")                            
     .insert({
       id: uuidv4(),                          
-      owner_id: user.id,                   
+      customer_id: customer.id,                   
       title: body.title,
       description: body.description,
       category: body.category,
       location: body.location,
-      min_price: body.minBudget || null,
-      max_price: body.maxBudget || null,
+      min_budget: body.minBudget || null,
+      max_budget: body.maxBudget || null,
+      images: body.images && body.images.length > 0 ? body.images : null,
       created_at: new Date().toISOString()   
     })
     .select("*")                              
@@ -52,22 +80,7 @@ export const POST = async (req: Request) => {
   }
 
   //Store uploaded images
-  if (body.images && body.images.length > 0) {
-
-    const imageRecords = body.images.map((url: string) => ({
-      id: uuidv4(),                           
-      job_id: newJob.id,                      
-      url,                                   
-      uploaded_at: new Date().toISOString()
-    }));
-
-    const { error: imgError } = await supabase.from("job_images").insert(imageRecords);
-
-    if (imgError) {
-      console.log("Image upload failed:", imgError);
-      return new Response(JSON.stringify({ error: imgError.message }), { status: 400 });
-    }
-  }
+  // Images are stored on the `jobs.images` column (TEXT[]). No separate table in schema.
 
   return new Response(
     JSON.stringify({ success: true, jobId: newJob.id }),

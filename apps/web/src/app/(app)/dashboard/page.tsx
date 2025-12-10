@@ -40,9 +40,9 @@ export default function DashboardPage() {
           avatar_url: getAvatarUrl(appUser.first_name),
         };
         setUser(appUser as UserProfile);
-      } catch (err: any) {
+      } catch (err) {
         console.error("Error loading user profile:", err);
-        setError(err.message || "Failed to load user profile.");
+        setError((err as any)?.message || "Failed to load user profile.");
       } finally {
         setLoading(false);
       }

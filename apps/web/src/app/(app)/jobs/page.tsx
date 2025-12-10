@@ -67,233 +67,43 @@ export default function JobsPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
-    const fetchUserDataAndJobs = async () => {
+    const fetchJobsFromAPI = async () => {
       setLoading(true);
       setError(null);
       try {
-        // Mock user data
-        const mockUsers: { [key: string]: UserProfile } = {
-          'worker@test.com': {
-            id: '2',
-            full_name: 'Sarah Worker',
-            role: 'worker',
-            location: 'Cape Town, SA',
-            plan_name: 'Professional',
-            job_leads_used: 15,
-            leads_limit: 50,
-          },
-          'homeowner@test.com': {
-            id: '1',
-            full_name: 'John Homeowner',
-            role: 'customer',
-            location: 'Johannesburg, SA',
-            plan_name: 'Premium',
-            job_leads_used: 0,
-            leads_limit: 0,
-          },
-        };
+        // Fetch jobs from the real API feed endpoint
+        const response = await fetch('/api/feed', {
+          credentials: 'include',
+        });
 
-        // Get logged-in user email from localStorage
-        const storedEmail = localStorage.getItem('userEmail') || 'homeowner@test.com';
-        const profile = mockUsers[storedEmail] || mockUsers['homeowner@test.com'];
-
-        setUser(profile as UserProfile);
-
-        // Mock jobs data
-        const mockJobs: Job[] = [
-          {
-            id: '1',
-            title: 'Kitchen Renovation',
-            description: 'Need help renovating kitchen - new cabinets, countertops, and flooring. Modern design preferred.',
-            category: 'Home Renovation',
-            location: 'Cape Town, SA',
-            min_budget: 15000,
-            max_budget: 25000,
-            preferred_date: '2025-12-20',
-            images: [],
-            created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-            status: 'open',
-            customer_id: '1',
-            profiles: {
-              full_name: 'John Homeowner',
-              avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John',
-            },
-            applications: [
-              {
-                id: 'app1',
-                worker_id: '2',
-                status: 'pending',
-                profiles: {
-                  full_name: 'Sarah Worker',
-                  avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
-                },
-              },
-            ],
-            conversations: [],
-          },
-          {
-            id: '2',
-            title: 'Electrical Wiring Installation',
-            description: 'Install new electrical wiring in bedroom and bathroom. ESKOM certified preferred.',
-            category: 'Electrical',
-            location: 'Cape Town, SA',
-            min_budget: 6000,
-            max_budget: 10000,
-            preferred_date: '2025-12-15',
-            images: [],
-            created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-            status: 'open',
-            customer_id: '4',
-            profiles: {
-              full_name: 'Jane Smith',
-              avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jane',
-            },
-            applications: [],
-            conversations: [],
-          },
-          {
-            id: '3',
-            title: 'Plumbing Repair',
-            description: 'Fix leaking pipes and install new fixtures in bathroom and kitchen.',
-            category: 'Plumbing',
-            location: 'Cape Town, SA',
-            min_budget: 4000,
-            max_budget: 7500,
-            preferred_date: '2025-12-10',
-            images: [],
-            created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-            status: 'open',
-            customer_id: '5',
-            profiles: {
-              full_name: 'Mike Johnson',
-              avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike',
-            },
-            applications: [],
-            conversations: [],
-          },
-          {
-            id: '4',
-            title: 'Garden Landscaping',
-            description: 'Complete garden redesign with new plants, paving, and outdoor seating area.',
-            category: 'Landscaping',
-            location: 'Johannesburg, SA',
-            min_budget: 8000,
-            max_budget: 15000,
-            preferred_date: '2025-12-25',
-            images: [],
-            created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-            status: 'open',
-            customer_id: '6',
-            profiles: {
-              full_name: 'Emma Wilson',
-              avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emma',
-            },
-            applications: [],
-            conversations: [],
-          },
-          {
-            id: '5',
-            title: 'Roof Repair & Maintenance',
-            description: 'Inspect and repair roof damage. Replace broken tiles and fix leaks.',
-            category: 'Roofing',
-            location: 'Pretoria, SA',
-            min_budget: 5000,
-            max_budget: 12000,
-            preferred_date: '2025-12-18',
-            images: [],
-            created_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-            status: 'open',
-            customer_id: '7',
-            profiles: {
-              full_name: 'David Brown',
-              avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=David',
-            },
-            applications: [],
-            conversations: [],
-          },
-          {
-            id: '6',
-            title: 'Painting - Interior & Exterior',
-            description: 'Paint entire house interior and exterior. Modern color scheme to be discussed.',
-            category: 'Painting',
-            location: 'Cape Town, SA',
-            min_budget: 3000,
-            max_budget: 8000,
-            preferred_date: '2025-12-22',
-            images: [],
-            created_at: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
-            status: 'open',
-            customer_id: '8',
-            profiles: {
-              full_name: 'Linda Martinez',
-              avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Linda',
-            },
-            applications: [],
-            conversations: [],
-          },
-          {
-            id: '7',
-            title: 'Tile Installation - Bathroom',
-            description: 'Install new tiles in bathroom floor and walls. Waterproofing included.',
-            category: 'Tiling',
-            location: 'Johannesburg, SA',
-            min_budget: 4500,
-            max_budget: 9000,
-            preferred_date: '2025-12-17',
-            images: [],
-            created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-            status: 'open',
-            customer_id: '9',
-            profiles: {
-              full_name: 'Robert Taylor',
-              avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Robert',
-            },
-            applications: [],
-            conversations: [],
-          },
-          {
-            id: '8',
-            title: 'Flooring Installation',
-            description: 'Install wooden laminate flooring throughout main living areas.',
-            category: 'Flooring',
-            location: 'Durban, SA',
-            min_budget: 7000,
-            max_budget: 14000,
-            preferred_date: '2025-12-28',
-            images: [],
-            created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-            status: 'open',
-            customer_id: '10',
-            profiles: {
-              full_name: 'Patricia Anderson',
-              avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Patricia',
-            },
-            applications: [],
-            conversations: [],
-          },
-        ];
-
-        // Filter jobs based on role
-        let fetchedJobs: Job[] = [];
-        if (profile.role === 'worker') {
-          // Worker sees open jobs
-          fetchedJobs = mockJobs.filter(job => job.status === 'open');
-        } else if (profile.role === 'customer') {
-          // Customer sees their own jobs
-          fetchedJobs = mockJobs.filter(job => job.customer_id === profile.id);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        setJobs(fetchedJobs);
-      } catch (err: any) {
+        const jobsData = await response.json();
+        setJobs(jobsData);
+
+        // Set dummy user (will be fetched from auth in real implementation)
+        setUser({
+          id: '1',
+          full_name: 'User',
+          role: 'worker',
+          location: 'South Africa',
+          plan_name: 'Professional',
+          job_leads_used: 0,
+          leads_limit: 50,
+        });
+
+      } catch (err) {
         console.error('Error loading jobs:', err);
-        setError(err.message || 'Failed to load jobs.');
+        setError((err as any)?.message || 'Failed to load jobs.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUserDataAndJobs();
-  }, []);
+    fetchJobsFromAPI();
+  }, [router]);
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
 
@@ -334,9 +144,9 @@ export default function JobsPage() {
             }
           : job
       ));
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error applying to job:', err);
-      setMessage({ type: 'error', text: err.message || 'Failed to apply to job.' });
+      setMessage({ type: 'error', text: (err as any)?.message || 'Failed to apply to job.' });
     } finally {
       setLoading(false);
     }
@@ -361,9 +171,9 @@ export default function JobsPage() {
           : job
       ));
       setMessage({ type: 'success', text: 'Worker approved and job assigned!' });
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error approving worker:', err);
-      setMessage({ type: 'error', text: err.message || 'Failed to approve worker.' });
+      setMessage({ type: 'error', text: (err as any)?.message || 'Failed to approve worker.' });
     } finally {
       setLoading(false);
     }
@@ -382,9 +192,9 @@ export default function JobsPage() {
         ),
       })));
       setMessage({ type: 'success', text: 'Application denied.' });
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error denying application:', err);
-      setMessage({ type: 'error', text: err.message || 'Failed to deny application.' });
+      setMessage({ type: 'error', text: (err as any)?.message || 'Failed to deny application.' });
     } finally {
       setLoading(false);
     }
@@ -400,9 +210,9 @@ export default function JobsPage() {
     try {
       // Mock message functionality - just navigate to messages page
       router.push(`/messages`);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error handling message:', err);
-      setMessage({ type: 'error', text: err.message || 'Failed to start conversation.' });
+      setMessage({ type: 'error', text: (err as any)?.message || 'Failed to start conversation.' });
     } finally {
       setLoading(false);
     }

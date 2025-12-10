@@ -20,8 +20,6 @@ import {
 } from "lucide-react";
 import Loader from "@/components/loader"; // Assuming a Loader component exists
 import type { UserProfile } from "@/utils/types/UserProfile";
-import { getAvatarUrl } from "@/lib/avatars";
-import { getClientCookie } from "@/utils/client/cookies";
 
 export default function EditProfilePage() {
   const router = useRouter();
@@ -58,43 +56,47 @@ export default function EditProfilePage() {
       setLoading(true);
       setMessage(null);
       try {
-        //get the user profile from cookies.
-        let profile = getClientCookie("app-user");
+        // Fetch user profile from API
+        const response = await fetch('/api/profile', {
+          credentials: 'include',
+        });
 
-        if (!profile) {
-          setMessage({ type: "error", text: "User profile not found." });
-          router.push("/auth/login");
-          return;
+        if (!response.ok) {
+          if (response.status === 401) {
+            setMessage({ type: "error", text: "User not authenticated." });
+            router.push("/auth/login");
+            return;
+          }
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        setUser(profile);
+        const profile = await response.json();
+
+        setUser(profile as any);
+
         setFormData({
           id: profile.id,
-          full_name: profile.first_name + " " + profile.last_name,
-          email: profile.email,
-          role: profile.role,
-          location:
-            profile.addresses[0].city + ", " + profile.addresses[0].province,
-          avatar_url: getAvatarUrl(
-            profile.first_name + " " + profile.last_name
-          ),
-          skills: profile.workers?.skills || [],
-          bio: profile.workers?.bio || "",
-          hourly_rate: profile.hourly_rate || "",
+          full_name: profile.full_name || '',
+          email: profile.email || '',
+          role: profile.role || 'worker',
+          location: profile.location || '',
+          avatar_url: profile.avatar_url || '',
+          skills: profile.skills || [],
+          bio: profile.bio || '',
+          hourly_rate: profile.hourly_rate || '',
           portfolio: profile.portfolio || [],
-          bank_name: profile.bank_name || "",
-          account_number: profile.account_number || "",
-          branch_code: profile.branch_code || "",
-          id_number: profile.id_number || "",
+          bank_name: profile.bank_name || '',
+          account_number: profile.account_number || '',
+          branch_code: profile.branch_code || '',
+          id_number: profile.id_number || '',
           preferred_categories: profile.preferred_categories || [],
         });
-      } catch (err: any) {
+      } catch (err) {
         console.error("Error fetching user profile:", err);
         setMessage({
           type: "error",
-          text: err.message || "Failed to load user profile.",
+          text: (err as any)?.message || "Failed to load user profile.",
         });
-        router.push("/auth/login"); // Redirect to login on error
       } finally {
         setLoading(false);
       }
@@ -134,11 +136,11 @@ export default function EditProfilePage() {
           setLoading(false);
         };
         fileReader.readAsDataURL(file);
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error updating avatar:", error);
         setMessage({
           type: "error",
-          text: error.message || "Failed to update avatar.",
+          text: (error as any)?.message || "Failed to update avatar.",
         });
         setLoading(false);
       }
@@ -200,25 +202,41 @@ export default function EditProfilePage() {
 
     try {
       const req = await fetch("/api/profile", {
-        method: "POST",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData }),
+        credentials: 'include',
+        body: JSON.stringify({
+          full_name: formData.full_name,
+          location: formData.location,
+          avatar_url: formData.avatar_url,
+          skills: formData.skills,
+          bio: formData.bio,
+          hourly_rate: formData.hourly_rate,
+          portfolio: formData.portfolio,
+          bank_name: formData.bank_name,
+          account_number: formData.account_number,
+          branch_code: formData.branch_code,
+          id_number: formData.id_number,
+          preferred_categories: formData.preferred_categories,
+        }),
       });
-      const res = await req.json();
-
+      
       if (!req.ok) {
-        setMessage({ type: "error", text: res.message });
+        const res = await req.json();
+        setMessage({ type: "error", text: res.error || "Failed to update profile" });
+        return;
       }
 
+      const res = await req.json();
       setMessage({ type: "success", text: "Profile updated successfully!" });
       setTimeout(() => {
         router.push("/dashboard");
       }, 1000);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error updating profile:", err);
       setMessage({
         type: "error",
-        text: err.message || "Failed to update profile. Please try again.",
+        text: (err as any)?.message || "Failed to update profile. Please try again.",
       });
     } finally {
       setLoading(false);
