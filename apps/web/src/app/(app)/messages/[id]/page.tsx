@@ -1,19 +1,13 @@
 // app/messages/[id]/page.tsx
-'use client';
+"use client";
 
-import { useState, useEffect, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { ModeToggle } from '@/components/mode-toggle';
-import { ArrowLeft, Send, Trash2 } from 'lucide-react';
-import Loader from '@/components/loader';
-
-interface HelpRequestMessage {
-  id: string;
-  created_at: string;
-  conversation_id: string;
-  sender_email: string;
-  text: string;
-}
+import { useState, useEffect, useRef } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { ModeToggle } from "@/components/mode-toggle";
+import { ArrowLeft, Send, Trash2 } from "lucide-react";
+import Loader from "@/components/loader";
+import { getClientCookie } from "@/utils/client/cookies";
+import { supabase } from "@/lib/supabase/api";
 
 interface HelpRequestConversation {
   id: string;
@@ -25,152 +19,139 @@ interface HelpRequestConversation {
   last_message_text?: string;
 }
 
+interface Message {
+  id: string;
+  chat_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+  deleted: boolean;
+  users: any;
+}
 export default function MessageThreadPage() {
   const router = useRouter();
   const { id } = useParams();
   const conversationId = Array.isArray(id) ? id[0] : id;
 
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [isHelpRequest, setIsHelpRequest] = useState(false);
-  const [conversation, setConversation] = useState<HelpRequestConversation | null>(null);
-  const [messages, setMessages] = useState<HelpRequestMessage[]>([]);
-  const [newMessage, setNewMessage] = useState('');
+  const [conversation, setConversation] = useState<any>(null);
+  const [user, setUser] = useState<any>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
 
   useEffect(() => {
-    const fetchConversationData = () => {
+    const channel = supabase
+      .channel(`chat-${id}-messages`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT", // test with only INSERT first
+          schema: "public",
+          table: "messages",
+          filter: `chat_id=eq.${id}`,
+        },
+        (payload) => {
+          console.log("🔥 New message:", payload.new);
+          const appUser = getClientCookie("app-user");
+          console.log("Current user:", appUser);
+          if (payload.new.sender_id === appUser?.id) return; //skip if the message is from the current user
+          setMessages((prev) => [...prev, payload.new as Message]);
+          //sends double messages
+        }
+      )
+      .subscribe();
+    const fetchConversationData = async () => {
       setLoading(true);
       setError(null);
 
       try {
         // Get current user
-        const storedEmail = localStorage.getItem('userEmail');
-        if (!storedEmail) {
-          router.push('/auth/login');
+        const appUser = getClientCookie("app-user");
+        if (!appUser) {
+          router.push("/api/auth/logout");
           return;
         }
-        setUserEmail(storedEmail);
-
+        setUser(appUser);
+        const req = await fetch(`/api/chats/${id}`);
+        if (!req.ok) {
+          throw new Error(`Failed to fetch conversation: ${req.statusText}`);
+        }
+        const res = await req.json();
         // Try to load help-request conversation
-        const rawConvs = localStorage.getItem('conversations');
-        if (rawConvs) {
+
+        if (res.data) {
           try {
-            const convs: HelpRequestConversation[] = JSON.parse(rawConvs);
-            const found = convs.find((c) => c.id === conversationId);
+            const conv = res.data;
+            conv.recipient.full_name =
+              conv.recipient.first_name + " " + conv.recipient.last_name;
+            setConversation(conv);
+            // Load messages
+            setMessages((res.data.messages as Message[]) || []);
 
-            if (found) {
-              setIsHelpRequest(true);
-              setConversation(found);
-
-              // Load messages
-              const rawMsgs = localStorage.getItem('help_request_messages');
-              if (rawMsgs) {
-                try {
-                  const allMsgs: HelpRequestMessage[] = JSON.parse(rawMsgs);
-                  const convMsgs = allMsgs.filter((m) => m.conversation_id === conversationId);
-                  convMsgs.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-                  setMessages(convMsgs);
-                } catch (e) {
-                  console.warn('Failed to load messages', e);
-                }
-              }
-              setLoading(false);
-              return;
-            }
+            setLoading(false);
+            return;
           } catch (e) {
-            console.warn('Failed to load help request conversations', e);
+            console.warn("Failed to load help request conversations", e);
           }
         }
 
-        setError('Conversation not found.');
+        setError("Conversation not found.");
         setLoading(false);
       } catch (err) {
-        console.error('Error loading conversation:', err);
-        setError((err as any)?.message || 'Failed to load conversation.');
+        //console.error("Error loading conversation:", err);
+        //setError((err as any)?.message || "Failed to load conversation.");
+        router.push("/api/auth/logout");
         setLoading(false);
       }
     };
 
     fetchConversationData();
+    return () => {
+      channel.unsubscribe();
+    };
   }, [conversationId, router]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleBack = () => router.push('/messages');
+  const handleBack = () => router.push("/messages");
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !userEmail || !conversation) return;
-
-    const newMsg: HelpRequestMessage = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-      created_at: new Date().toISOString(),
-      conversation_id: conversationId as string,
-      sender_email: userEmail,
-      text: newMessage.trim(),
-    };
-
-    // Update messages in localStorage
-    const rawMsgs = localStorage.getItem('help_request_messages');
-    let allMsgs: HelpRequestMessage[] = [];
-    if (rawMsgs) {
-      try {
-        allMsgs = JSON.parse(rawMsgs);
-      } catch (e) {
-        console.warn('Failed to parse messages');
-      }
-    }
-
-    allMsgs.push(newMsg);
-    localStorage.setItem('help_request_messages', JSON.stringify(allMsgs));
-
-    // Update conversation last message
-    const rawConvs = localStorage.getItem('conversations');
-    if (rawConvs) {
-      try {
-        const convs: HelpRequestConversation[] = JSON.parse(rawConvs);
-        const updated = convs.map((c) =>
-          c.id === conversationId ? { ...c, last_message_text: newMessage.trim() } : c
-        );
-        localStorage.setItem('conversations', JSON.stringify(updated));
-      } catch (e) {
-        console.warn('Failed to update conversation', e);
-      }
-    }
-
+    if (!newMessage.trim() || !conversation) return;
+    //optimistic update for better UX
     setMessages((prev) => [...prev, newMsg]);
-    setNewMessage('');
+    setNewMessage("");
+
+    //process the new message
+    const newMsg: any = {
+      chat_id: conversation.id as string,
+      content: newMessage.trim(),
+      sender_id: user.id,
+      created_at: new Date().toISOString(),
+      users: user,
+    };
+    //send to api
+    const req = await fetch(`/api/chats/${conversation.id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: newMsg.content }),
+    });
+
+    const res = await req.json();
+    if (!req.ok) {
+      alert(`Failed to send message: ${res.error || req.statusText}`);
+      //remove the optimistic message
+      setMessages((prev) => prev.filter((msg) => msg !== newMsg));
+      return;
+    }
   };
 
   const deleteConversation = () => {
-    if (!confirm('Are you sure you want to delete this conversation?')) return;
-
-    try {
-      // Remove conversation
-      const rawConvs = localStorage.getItem('conversations');
-      if (rawConvs) {
-        const convs: HelpRequestConversation[] = JSON.parse(rawConvs);
-        const filtered = convs.filter((c) => c.id !== conversationId);
-        localStorage.setItem('conversations', JSON.stringify(filtered));
-      }
-
-      // Remove messages
-      const rawMsgs = localStorage.getItem('help_request_messages');
-      if (rawMsgs) {
-        const allMsgs: HelpRequestMessage[] = JSON.parse(rawMsgs);
-        const filtered = allMsgs.filter((m) => m.conversation_id !== conversationId);
-        localStorage.setItem('help_request_messages', JSON.stringify(filtered));
-      }
-
-      router.push('/messages');
-    } catch (err) {
-      console.error('Error deleting conversation:', err);
-      setError((err as any)?.message || 'Failed to delete conversation.');
-    }
+    if (!confirm("Are you sure you want to delete this conversation?")) return;
   };
 
   if (loading) {
@@ -181,8 +162,13 @@ export default function MessageThreadPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <p className="text-red-600 dark:text-red-400 mb-4">Error: {error || 'Conversation not found'}</p>
-          <button onClick={handleBack} className="text-blue-600 dark:text-blue-400 hover:underline">
+          <p className="text-red-600 dark:text-red-400 mb-4">
+            Error: {error || "Conversation not found"}
+          </p>
+          <button
+            onClick={handleBack}
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+          >
             Go Back to Messages
           </button>
         </div>
@@ -190,39 +176,37 @@ export default function MessageThreadPage() {
     );
   }
 
-  const otherEmail =
-    userEmail === conversation.requester_email
-      ? conversation.responder_email
-      : conversation.requester_email;
-
-  const otherName =
-    otherEmail === 'homeowner@test.com'
-      ? 'John Homeowner'
-      : otherEmail === 'worker@test.com'
-      ? 'Sarah Worker'
-      : otherEmail;
-
-  const otherAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${otherName.split(' ')[0]}`;
-
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors">
       {/* Navbar */}
       <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <button onClick={handleBack} className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+          <button
+            onClick={handleBack}
+            className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+          >
             <ArrowLeft className="w-5 h-5" />
             <span className="hidden sm:inline">Back</span>
           </button>
 
           <div className="flex items-center gap-3 flex-1">
             <img
-              src={otherAvatar}
-              alt={otherName}
+              src={
+                conversation.recipient.avatar_url ||
+                `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                  conversation.recipient.full_name || "User"
+                )}&background=4F46E5&color=fff`
+              }
+              alt={conversation.recipient.full_name}
               className="w-10 h-10 rounded-full border-2 border-blue-500"
             />
             <div>
-              <h1 className="font-bold text-gray-800 dark:text-white">{otherName}</h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Help Request • {conversation.help_request_title}</p>
+              <h1 className="font-bold text-gray-800 dark:text-white">
+                {conversation.recipient.full_name}
+              </h1>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Help Request • {conversation.help_request_title}
+              </p>
             </div>
           </div>
 
@@ -245,7 +229,8 @@ export default function MessageThreadPage() {
       <main className="flex-grow container mx-auto px-4 py-4 flex flex-col max-w-3xl w-full">
         <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
           <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
-            Help Request: <span className="font-bold">{conversation.help_request_title}</span>
+            Help Request:{" "}
+            <span className="font-bold">{conversation.help_request_title}</span>
           </p>
         </div>
 
@@ -255,38 +240,37 @@ export default function MessageThreadPage() {
               <p>No messages yet. Start the conversation!</p>
             </div>
           ) : (
-            messages.map((msg) => {
-              const isOwn = msg.sender_email === userEmail;
-              const senderName =
-                msg.sender_email === 'homeowner@test.com'
-                  ? 'John Homeowner'
-                  : msg.sender_email === 'worker@test.com'
-                  ? 'Sarah Worker'
-                  : msg.sender_email;
+            messages.map((msg, i) => {
+              const isOwn = msg.sender_id === user.id;
 
               return (
-                <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  key={i}
+                  className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+                >
                   <div
                     className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-2 rounded-2xl ${
                       isOwn
-                        ? 'bg-blue-600 text-white rounded-tr-none'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-tl-none'
+                        ? "bg-blue-600 text-white rounded-tr-none"
+                        : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-tl-none"
                     }`}
                   >
                     {!isOwn && (
                       <div className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">
-                        {senderName}
+                        {conversation.recipient.full_name}
                       </div>
                     )}
-                    <p className="break-words">{msg.text}</p>
+                    <p className="break-words">{msg.content}</p>
                     <p
                       className={`text-xs mt-1 ${
-                        isOwn ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
+                        isOwn
+                          ? "text-blue-100"
+                          : "text-gray-500 dark:text-gray-400"
                       }`}
                     >
                       {new Date(msg.created_at).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
+                        hour: "2-digit",
+                        minute: "2-digit",
                       })}
                     </p>
                   </div>
@@ -297,7 +281,10 @@ export default function MessageThreadPage() {
           <div ref={messagesEndRef} />
         </div>
 
-        <form onSubmit={handleSendMessage} className="mt-auto pt-2 border-t border-gray-200 dark:border-gray-700">
+        <form
+          onSubmit={handleSendMessage}
+          className="mt-auto pt-2 border-t border-gray-200 dark:border-gray-700"
+        >
           <div className="flex gap-2">
             <input
               type="text"
