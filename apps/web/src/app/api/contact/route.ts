@@ -8,7 +8,7 @@ export const POST = async (request: NextRequest) => {
 
     //send to the company email
     const info = `Message from: ${name} (${email}) <br/><br/> ${message}`;
-    sendEmail({ email: companyEmail, name }, {
+    sendEmail({ email: companyEmail, name: "Brinkify SA" }, {
         subject: subject + " (Contact Form Submission) from " + name,
         message: info
     })

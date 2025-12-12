@@ -1,5 +1,4 @@
 import { createClient } from "@/utils/supabase/server";  
-import { v4 as uuidv4 } from "uuid";
 
 export const POST = async (req: Request) => {
 
@@ -60,7 +59,6 @@ export const POST = async (req: Request) => {
   const { data: newJob, error: jobError } = await supabase
     .from("jobs")                            
     .insert({
-      id: uuidv4(),                          
       customer_id: customer.id,                   
       title: body.title,
       description: body.description,
