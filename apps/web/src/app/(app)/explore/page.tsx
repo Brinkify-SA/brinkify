@@ -211,9 +211,9 @@ export default function ExplorePage() {
     console.log('Cannot delete completed jobs from API');
   };
 
-  const openPrivacy = () => window.open('https://brinkifysa.co.za/privacy', '_blank');
-  const openTerms = () => window.open('https://brinkifysa.co.za/terms', '_blank');
-  const openContact = () => (window.location.href = 'mailto:support@brinkifysa.co.za');
+   const openPrivacy = () => window.open('/privacy', '_blank');
+  const openTerms = () => window.open('/terms', '_blank');
+  const openContact = () => (window.location.href = '/contact');
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors">
@@ -411,7 +411,7 @@ export default function ExplorePage() {
         <div className="container mx-auto px-4">
           <span className="text-xl font-bold text-blue-600 dark:text-blue-400">Brinkify SA</span>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
-            © {new Date().getFullYear()} Brinkify SA. Empowering South Africa’s skilled workforce and growing businesses.
+            © {new Date().getFullYear()} Brinkify SA (Pty) Ltd. Connecting South Africa’s skilled workforce with real opportunities.
           </p>
           <div className="space-x-4 mt-3">
             <button onClick={openTerms} className="text-blue-600 dark:text-blue-400 hover:underline">Terms</button>
