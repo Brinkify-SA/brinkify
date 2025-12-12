@@ -2,11 +2,10 @@ import { createClient } from "@/utils/supabase/server";
 
 export const GET = async (
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) => {
     const supabase = await createClient();
-    const param = await params;
-    const chatId = param.id;
+    const chatId = (await context.params).id;
 
     //get the logged in user
     const { data: { user } } = await supabase.auth.getUser();
@@ -81,11 +80,9 @@ export const GET = async (
 //post message to a chat
 export const POST = async (
   request: Request,
-  { params }: { params: { id: string } }
-) => {
+context: { params: Promise<{ id: string }> }) => {
     const supabase = await createClient();
-    const param = await params;
-    const chatId = param.id;
+    const chatId = (await context.params).id;
     const data = await request.json();
     const { message } = data;
 
