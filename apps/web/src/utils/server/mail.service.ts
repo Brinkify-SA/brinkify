@@ -17,15 +17,16 @@ interface MailWithParts extends Mail{
 	textPart: string;
 }
 
-//initialize mailjet client
-const mailjet = Mailjet.apiConnect(
-  process.env.MJ_APIKEY_PUBLIC!,
-  process.env.MJ_APIKEY_PRIVATE!
-);
+
 
 
 //the main function to be called
 export function sendEmail(user: MailUser | MailUser, mail: Mail) {
+	//initialize mailjet client
+const mailjet = Mailjet.apiConnect(
+  process.env.MJ_APIKEY_PUBLIC!,
+  process.env.MJ_APIKEY_PRIVATE!
+);
 	const sender = { email: 'brinkifydev@gmail.com', name: 'Brinkify SA' };
 	const htmlPart = mail.message ? emailTemplate(mail.message, user.name, 'https://brinkifysa.netlify.app/') : '';
 	
@@ -40,12 +41,7 @@ export function sendEmail(user: MailUser | MailUser, mail: Mail) {
 		.catch((err: any) => {
 			return err;
 		})
-}
-
-
-
-
-function request(from: MailUser, to: MailUser, mail: MailWithParts) {
+	function request(from: MailUser, to: MailUser, mail: MailWithParts) {
 	return mailjet
 		.post('send', { version: 'v3.1' })
 	.request({
@@ -69,6 +65,12 @@ function request(from: MailUser, to: MailUser, mail: MailWithParts) {
 	})
 
 }
+}
+
+
+
+
+
 
 const logo = 'https://raw.githubusercontent.com/Brinkify-SA/brinkify/refs/heads/main/apps/web/public/images/BrinkifySA.png'; // Logo URL
 
