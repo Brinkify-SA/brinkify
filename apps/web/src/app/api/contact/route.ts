@@ -1,6 +1,9 @@
 import { sendEmail } from "@/utils/server/mail.service";
 import type { NextRequest } from "next/server";
 
+
+export const runtime = "nodejs";
+
 export const POST = async (request: NextRequest) => { 
     const data = await request.json();
     const { name, email, message, subject } = data;
