@@ -232,20 +232,6 @@ export default function DashboardPage() {
                       user.active_projects || 0
                     } active projects in ${user.addresses[0].city}.`}
               </p>
-              {!user.is_verified && (
-                <div className="mt-2 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-2 rounded-md">
-                  <p className="font-bold">Account Not Verified</p>
-                  <p className="text-sm">
-                    Complete your profile to get verified.
-                  </p>
-                  <Link
-                    href="/profile/edit"
-                    className="mt-1 text-sm font-bold text-yellow-800 hover:underline"
-                  >
-                    Get Verified
-                  </Link>
-                </div>
-              )}
               {/* Plan Usage */}
               {user.role !== "customer" && (
                 <div className="mt-2 bg-blue-100/30 border border-blue-300 text-blue-800 p-2 rounded-md text-sm">
