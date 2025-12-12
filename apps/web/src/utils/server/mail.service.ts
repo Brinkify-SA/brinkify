@@ -23,10 +23,11 @@ interface MailWithParts extends Mail{
 //the main function to be called
 export function sendEmail(user: MailUser | MailUser, mail: Mail) {
 	//initialize mailjet client
-const mailjet = Mailjet.apiConnect(
-  process.env.MJ_APIKEY_PUBLIC!,
-  process.env.MJ_APIKEY_PRIVATE!
-);
+	const mailjet = Mailjet.apiConnect(
+	process.env.MJ_APIKEY_PUBLIC!,
+	process.env.MJ_APIKEY_PRIVATE!
+	);
+
 	const sender = { email: 'brinkifydev@gmail.com', name: 'Brinkify SA' };
 	const htmlPart = mail.message ? emailTemplate(mail.message, user.name, 'https://brinkifysa.netlify.app/') : '';
 	
@@ -41,30 +42,31 @@ const mailjet = Mailjet.apiConnect(
 		.catch((err: any) => {
 			return err;
 		})
+	
+	//helper
 	function request(from: MailUser, to: MailUser, mail: MailWithParts) {
-	return mailjet
-		.post('send', { version: 'v3.1' })
-	.request({
-		Messages: [
-			{
-				From: {
-					Email: from.email,
-					Name:from.name
-				},
-				To: [
+		return mailjet
+			.post('send', { version: 'v3.1' })
+			.request({
+				Messages: [
 					{
-						Email: to.email,
-						Name: to.email
+						From: {
+							Email: from.email,
+							Name:from.name
+						},
+						To: [
+							{
+								Email: to.email,
+								Name: to.email
+							}
+						],
+						Subject: mail.subject,
+						TextPart: mail.textPart,
+						HTMLPart: mail.htmlPart
 					}
-				],
-				Subject: mail.subject,
-				TextPart: mail.textPart,
-				HTMLPart: mail.htmlPart
-			}
-		]
-	})
-
-}
+				]
+		})
+	}
 }
 
 
