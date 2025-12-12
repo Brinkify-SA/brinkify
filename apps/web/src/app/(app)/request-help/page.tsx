@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
 import { Users, MapPin } from 'lucide-react';
+import { getClientCookie } from '@/utils/client/cookies';
 
 interface HelpRequest {
   id: string;
@@ -22,7 +23,7 @@ interface HelpRequest {
 export default function RequestHelpPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [isWorker, setIsWorker] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -35,17 +36,19 @@ export default function RequestHelpPage() {
 
   useEffect(() => {
     setLoading(true);
-    // Determine mock role from stored email
-    const email = localStorage.getItem('userEmail');
-    setUserEmail(email);
-
-    // Simple mapping: only 'worker@test.com' is treated as a worker in mock data
-    const workerEmails = ['worker@test.com'];
-    if (email && workerEmails.includes(email)) {
-      setIsWorker(true);
-    } else {
-      setIsWorker(false);
-    }
+     try {
+       const appUser = getClientCookie('app-user');
+       if (!appUser || !appUser.email) {
+         setIsAuthenticated(false);
+         setLoading(false);
+         return;
+       }
+       setUserEmail(appUser.email);
+       setIsAuthenticated(true);
+     } catch (err) {
+       console.error('Error loading user:', err);
+       setIsAuthenticated(false);
+     }
 
     // Load existing requests from localStorage
     const raw = localStorage.getItem('helpRequests');
@@ -59,7 +62,7 @@ export default function RequestHelpPage() {
     }
 
     setLoading(false);
-  }, []);
+  }, [router]);
 
   const saveRequest = (req: HelpRequest) => {
     const raw = localStorage.getItem('helpRequests');
@@ -71,11 +74,6 @@ export default function RequestHelpPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
-
-    if (!isWorker) {
-      setMessage({ type: 'error', text: 'Only workers can request help.' });
-      return;
-    }
 
     if (!title.trim() || !description.trim()) {
       setMessage({ type: 'error', text: 'Please provide a title and description.' });
@@ -107,7 +105,7 @@ export default function RequestHelpPage() {
 
   if (loading) return <div className="p-8">Loading…</div>;
 
-  if (!isWorker) {
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100">
         <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
@@ -119,7 +117,7 @@ export default function RequestHelpPage() {
         <main className="flex-grow flex items-center justify-center p-8">
           <div className="max-w-2xl text-center">
             <h2 className="text-2xl font-bold mb-2">Request Help</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">This feature is available to registered workers only.</p>
+             <p className="text-gray-600 dark:text-gray-400 mb-4">You must be logged in to request help.</p>
             <div className="flex justify-center gap-3">
               <Link href="/auth/login" className="px-4 py-2 bg-blue-600 text-white rounded-lg">Log in</Link>
               <Link href="/auth/signup" className="px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg">Sign up</Link>

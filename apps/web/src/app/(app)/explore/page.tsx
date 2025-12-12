@@ -411,7 +411,7 @@ export default function ExplorePage() {
         <div className="container mx-auto px-4">
           <span className="text-xl font-bold text-blue-600 dark:text-blue-400">Brinkify SA</span>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
-            © {new Date().getFullYear()} Brinkify SA. Empowering South Africa’s skilled workforce and growing businesses.
+            © {new Date().getFullYear()} Brinkify SA (Pty) Ltd. Connecting South Africa’s skilled workforce with real opportunities.
           </p>
           <div className="space-x-4 mt-3">
             <button onClick={openTerms} className="text-blue-600 dark:text-blue-400 hover:underline">Terms</button>

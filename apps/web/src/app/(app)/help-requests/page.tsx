@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
 import { Users, CheckCircle, MessageSquare, Send, X } from 'lucide-react';
+import { getClientCookie } from '@/utils/client/cookies';
 
 interface HelpRequest {
   id: string;
@@ -73,7 +74,7 @@ const MOCK_HELP_REQUESTS: HelpRequest[] = [
 export default function HelpRequestsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [isWorker, setIsWorker] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [requests, setRequests] = useState<HelpRequest[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -83,12 +84,19 @@ export default function HelpRequestsPage() {
 
   useEffect(() => {
     setLoading(true);
-    const email = localStorage.getItem('userEmail');
-    setUserEmail(email);
-
-    // Simple mock: treat 'worker@test.com' as worker; expand as needed
-    const workerEmails = ['worker@test.com'];
-    setIsWorker(Boolean(email && workerEmails.includes(email)));
+     try {
+       const appUser = getClientCookie('app-user');
+       if (!appUser || !appUser.email) {
+         setIsAuthenticated(false);
+         setLoading(false);
+         return;
+       }
+       setUserEmail(appUser.email);
+       setIsAuthenticated(true);
+     } catch (err) {
+       console.error('Error loading user:', err);
+       setIsAuthenticated(false);
+     }
 
     const raw = localStorage.getItem('helpRequests');
     if (raw) {
@@ -113,7 +121,7 @@ export default function HelpRequestsPage() {
     }
 
     setLoading(false);
-  }, []);
+  }, [router]);
 
   const updateLocalRequests = (updated: HelpRequest[]) => {
     // persist in same order as saved (oldest first)
@@ -224,7 +232,7 @@ export default function HelpRequestsPage() {
 
   if (loading) return <div className="p-8">Loading…</div>;
 
-  if (!isWorker) {
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100">
         <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
