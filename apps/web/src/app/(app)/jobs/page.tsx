@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { ModeToggle } from '@/components/mode-toggle';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { ModeToggle } from "@/components/mode-toggle";
 import {
   Home,
   Briefcase,
@@ -12,13 +12,13 @@ import {
   ArrowLeft,
   UserCheck,
   UserX,
-} from 'lucide-react';
-import Loader from '@/components/loader'; // Assuming a Loader component exists
+} from "lucide-react";
+import Loader from "@/components/loader"; // Assuming a Loader component exists
 
 interface UserProfile {
   id: string;
   full_name: string;
-  role: 'worker' | 'customer' | 'company';
+  role: "worker" | "customer" | "company";
   location: string;
   plan_name: string;
   job_leads_used: number;
@@ -36,7 +36,7 @@ interface Job {
   preferred_date?: string;
   images?: string[];
   created_at: string;
-  status: 'open' | 'assigned' | 'in-progress' | 'completed' | 'cancelled';
+  status: "open" | "assigned" | "in-progress" | "completed" | "cancelled";
   customer_id: string;
   worker_id?: string;
   profiles: {
@@ -46,7 +46,7 @@ interface Job {
   applications: {
     id: string;
     worker_id: string;
-    status: 'pending' | 'approved' | 'denied';
+    status: "pending" | "approved" | "denied";
     profiles: {
       full_name: string;
       avatar_url: string;
@@ -64,7 +64,10 @@ export default function JobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     const fetchJobsFromAPI = async () => {
@@ -72,8 +75,8 @@ export default function JobsPage() {
       setError(null);
       try {
         // Fetch jobs from the real API feed endpoint
-        const response = await fetch('/api/feed', {
-          credentials: 'include',
+        const response = await fetch("/api/feed", {
+          credentials: "include",
         });
 
         if (!response.ok) {
@@ -85,18 +88,17 @@ export default function JobsPage() {
 
         // Set dummy user (will be fetched from auth in real implementation)
         setUser({
-          id: '1',
-          full_name: 'User',
-          role: 'worker',
-          location: 'South Africa',
-          plan_name: 'Professional',
+          id: "1",
+          full_name: "User",
+          role: "worker",
+          location: "South Africa",
+          plan_name: "Professional",
           job_leads_used: 0,
           leads_limit: 50,
         });
-
       } catch (err) {
-        console.error('Error loading jobs:', err);
-        setError((err as any)?.message || 'Failed to load jobs.');
+        console.error("Error loading jobs:", err);
+        setError((err as any)?.message || "Failed to load jobs.");
       } finally {
         setLoading(false);
       }
@@ -113,12 +115,12 @@ export default function JobsPage() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('userEmail');
-    router.push('/auth/login');
+    localStorage.removeItem("userEmail");
+    router.push("/auth/login");
   };
 
   const handleBackToDashboard = () => {
-    router.push('/dashboard');
+    router.push("/dashboard");
   };
 
   const handleApply = async (jobId: string) => {
@@ -126,54 +128,76 @@ export default function JobsPage() {
     setLoading(true);
     try {
       // Mock apply functionality
-      setMessage({ type: 'success', text: 'Application submitted!' });
+      setMessage({ type: "success", text: "Application submitted!" });
       // In real app, update jobs to show applied status
-      setJobs(jobs.map(job => 
-        job.id === jobId 
-          ? {
-              ...job,
-              applications: [...(job.applications || []), {
-                id: `app-${Date.now()}`,
-                worker_id: user.id,
-                status: 'pending',
-                profiles: {
-                  full_name: user.full_name,
-                  avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user.full_name,
-                },
-              }],
-            }
-          : job
-      ));
+      setJobs(
+        jobs.map((job) =>
+          job.id === jobId
+            ? {
+                ...job,
+                applications: [
+                  ...(job.applications || []),
+                  {
+                    id: `app-${Date.now()}`,
+                    worker_id: user.id,
+                    status: "pending",
+                    profiles: {
+                      full_name: user.full_name,
+                      avatar_url:
+                        "https://api.dicebear.com/7.x/avataaars/svg?seed=" +
+                        user.full_name,
+                    },
+                  },
+                ],
+              }
+            : job
+        )
+      );
     } catch (err) {
-      console.error('Error applying to job:', err);
-      setMessage({ type: 'error', text: (err as any)?.message || 'Failed to apply to job.' });
+      console.error("Error applying to job:", err);
+      setMessage({
+        type: "error",
+        text: (err as any)?.message || "Failed to apply to job.",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleApprove = async (jobId: string, workerId: string, applicationId: string) => {
+  const handleApprove = async (
+    jobId: string,
+    workerId: string,
+    applicationId: string
+  ) => {
     setLoading(true);
     try {
       // Mock approval functionality
-      setJobs(jobs.map(job =>
-        job.id === jobId
-          ? {
-              ...job,
-              status: 'assigned' as const,
-              worker_id: workerId,
-              applications: job.applications.map(app =>
-                app.id === applicationId
-                  ? { ...app, status: 'approved' as const }
-                  : { ...app, status: 'denied' as const }
-              ),
-            }
-          : job
-      ));
-      setMessage({ type: 'success', text: 'Worker approved and job assigned!' });
+      setJobs(
+        jobs.map((job) =>
+          job.id === jobId
+            ? {
+                ...job,
+                status: "assigned" as const,
+                worker_id: workerId,
+                applications: job.applications.map((app) =>
+                  app.id === applicationId
+                    ? { ...app, status: "approved" as const }
+                    : { ...app, status: "denied" as const }
+                ),
+              }
+            : job
+        )
+      );
+      setMessage({
+        type: "success",
+        text: "Worker approved and job assigned!",
+      });
     } catch (err) {
-      console.error('Error approving worker:', err);
-      setMessage({ type: 'error', text: (err as any)?.message || 'Failed to approve worker.' });
+      console.error("Error approving worker:", err);
+      setMessage({
+        type: "error",
+        text: (err as any)?.message || "Failed to approve worker.",
+      });
     } finally {
       setLoading(false);
     }
@@ -183,18 +207,23 @@ export default function JobsPage() {
     setLoading(true);
     try {
       // Mock deny functionality
-      setJobs(jobs.map(job => ({
-        ...job,
-        applications: job.applications.map(app =>
-          app.id === applicationId
-            ? { ...app, status: 'denied' as const }
-            : app
-        ),
-      })));
-      setMessage({ type: 'success', text: 'Application denied.' });
+      setJobs(
+        jobs.map((job) => ({
+          ...job,
+          applications: job.applications.map((app) =>
+            app.id === applicationId
+              ? { ...app, status: "denied" as const }
+              : app
+          ),
+        }))
+      );
+      setMessage({ type: "success", text: "Application denied." });
     } catch (err) {
-      console.error('Error denying application:', err);
-      setMessage({ type: 'error', text: (err as any)?.message || 'Failed to deny application.' });
+      console.error("Error denying application:", err);
+      setMessage({
+        type: "error",
+        text: (err as any)?.message || "Failed to deny application.",
+      });
     } finally {
       setLoading(false);
     }
@@ -202,7 +231,7 @@ export default function JobsPage() {
 
   const handleMessage = async (targetUserId: string, jobId?: string) => {
     if (!user) {
-      setMessage({ type: 'error', text: 'Please log in to send messages.' });
+      setMessage({ type: "error", text: "Please log in to send messages." });
       return;
     }
 
@@ -211,8 +240,11 @@ export default function JobsPage() {
       // Mock message functionality - just navigate to messages page
       router.push(`/messages`);
     } catch (err) {
-      console.error('Error handling message:', err);
-      setMessage({ type: 'error', text: (err as any)?.message || 'Failed to start conversation.' });
+      console.error("Error handling message:", err);
+      setMessage({
+        type: "error",
+        text: (err as any)?.message || "Failed to start conversation.",
+      });
     } finally {
       setLoading(false);
     }
@@ -226,7 +258,10 @@ export default function JobsPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <p className="text-red-600 dark:text-red-400">Error: {error}</p>
-        <button onClick={() => router.push('/dashboard')} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+        <button
+          onClick={() => router.push("/dashboard")}
+          className="ml-4 text-blue-600 dark:text-blue-400 hover:underline"
+        >
           Go to Dashboard
         </button>
       </div>
@@ -236,16 +271,21 @@ export default function JobsPage() {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <p className="text-gray-600 dark:text-gray-300">No user data found. Please log in.</p>
-        <button onClick={() => router.push('/auth/login')} className="ml-4 text-blue-600 dark:text-blue-400 hover:underline">
+        <p className="text-gray-600 dark:text-gray-300">
+          No user data found. Please log in.
+        </p>
+        <button
+          onClick={() => router.push("/auth/login")}
+          className="ml-4 text-blue-600 dark:text-blue-400 hover:underline"
+        >
           Go to Login
         </button>
       </div>
     );
   }
 
-  const isWorker = user.role === 'worker';
-  const userCity = user.location.split(',')[0]?.trim() || user.location;
+  const isWorker = user.role === "worker";
+  const userCity = user.location.split(",")[0]?.trim() || user.location;
 
   if (isWorker && user.job_leads_used >= user.leads_limit) {
     return (
@@ -272,7 +312,7 @@ export default function JobsPage() {
             <p className="font-bold">You have reached your monthly limit</p>
             <p>You’ve used all {user.leads_limit} job leads this month.</p>
             <button
-              onClick={() => router.push('/pricing')}
+              onClick={() => router.push("/pricing")}
               className="mt-2 text-blue-600 hover:underline font-semibold"
             >
               Upgrade to apply to more jobs
@@ -296,7 +336,7 @@ export default function JobsPage() {
             <span className="hidden sm:inline">Dashboard</span>
           </button>
           <h1 className="text-lg font-bold text-gray-800 dark:text-white md:hidden">
-            {isWorker ? 'Jobs' : 'My Jobs'}
+            {isWorker ? "Jobs" : "My Jobs"}
           </h1>
           <div className="hidden md:block">
             <ModeToggle />
@@ -353,16 +393,28 @@ export default function JobsPage() {
               </svg>
             </button>
             <nav className="flex flex-col space-y-4 mt-6">
-              <button onClick={() => navigate('/')} className="text-left text-lg font-medium">
+              <button
+                onClick={() => navigate("/")}
+                className="text-left text-lg font-medium"
+              >
                 Home
               </button>
-              <button onClick={() => navigate('/explore')} className="text-left text-lg font-medium">
+              <button
+                onClick={() => navigate("/explore")}
+                className="text-left text-lg font-medium"
+              >
                 Explore
               </button>
-              <button onClick={() => navigate('/about')} className="text-left text-lg font-medium">
+              <button
+                onClick={() => navigate("/about")}
+                className="text-left text-lg font-medium"
+              >
                 About Us
               </button>
-              <button onClick={handleLogout} className="text-left text-lg font-medium">
+              <button
+                onClick={handleLogout}
+                className="text-left text-lg font-medium"
+              >
                 Log Out
               </button>
             </nav>
@@ -374,50 +426,49 @@ export default function JobsPage() {
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white">
-            {isWorker ? 'Available Jobs' : 'Your Posted Jobs'}
+            {isWorker ? "Available Jobs" : "Your Posted Jobs"}
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
             {isWorker
               ? `Jobs in ${userCity} and nearby areas`
-              : 'Review and manage applicants for your jobs.'}
+              : "Review and manage applicants for your jobs."}
           </p>
-        </div> {/* Closing div for mb-8 */}
-
+        </div>{" "}
+        {/* Closing div for mb-8 */}
         {message && (
           <div
             className={`mb-6 p-3 rounded-lg text-sm ${
-              message.type === 'success'
-                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+              message.type === "success"
+                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
             }`}
           >
             {message.text}
           </div>
         )}
-
         {jobs.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 rounded-xl p-8 text-center border border-gray-200 dark:border-gray-700">
             <Briefcase className="mx-auto h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-2">
               {isWorker
                 ? `No jobs in ${userCity} right now`
-                : 'No jobs posted yet'}
+                : "No jobs posted yet"}
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
               {isWorker
-                ? 'Jobs are added daily. Check back soon or update your location.'
-                : 'Post your first job to receive applications from skilled workers.'}
+                ? "Jobs are added daily. Check back soon or update your location."
+                : "Post your first job to receive applications from skilled workers."}
             </p>
             {isWorker ? (
               <button
-                onClick={() => navigate('/profile/edit')}
+                onClick={() => navigate("/profile/edit")}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium"
               >
                 Update Location
               </button>
             ) : (
               <button
-                onClick={() => navigate('/post-job')}
+                onClick={() => navigate("/post-job")}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium"
               >
                 Post a Job
@@ -443,14 +494,14 @@ export default function JobsPage() {
                   </div>
                   <span
                     className={`px-2 py-1 rounded text-xs font-medium ${
-                      job.status === 'open'
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                        : job.status === 'assigned'
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                        : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                      job.status === "open"
+                        ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                        : job.status === "assigned"
+                        ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                        : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
                     }`}
                   >
-                    {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
+                    {job.status?.charAt(0).toUpperCase() + job.status?.slice(1)}
                   </span>
                 </div>
 
@@ -465,7 +516,10 @@ export default function JobsPage() {
                   </div>
                   {(job.min_budget || job.max_budget) && (
                     <div className="font-medium">
-                      ZAR {job.min_budget ? job.min_budget.toLocaleString() : ''} {job.min_budget && job.max_budget ? '-' : ''} {job.max_budget ? job.max_budget.toLocaleString() : ''}
+                      ZAR{" "}
+                      {job.min_budget ? job.min_budget.toLocaleString() : ""}{" "}
+                      {job.min_budget && job.max_budget ? "-" : ""}{" "}
+                      {job.max_budget ? job.max_budget.toLocaleString() : ""}
                     </div>
                   )}
                 </div>
@@ -481,19 +535,32 @@ export default function JobsPage() {
                         <MessageCircle className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                       </button>
                     )}
-                    {job.status === 'open' && !job.applications.some(app => app.worker_id === user.id) && (
-                      <button
-                        onClick={() => handleApply(job.id)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
-                      >
-                        Apply
-                      </button>
+                    {job.status === "open" &&
+                      !job.applications?.some(
+                        (app) => app.worker_id === user.id
+                      ) && (
+                        <button
+                          onClick={() => handleApply(job.id)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                        >
+                          Apply
+                        </button>
+                      )}
+                    {job.applications?.some(
+                      (app) =>
+                        app.worker_id === user.id && app.status === "pending"
+                    ) && (
+                      <span className="px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400">
+                        Applied (Pending)
+                      </span>
                     )}
-                    {job.applications.some(app => app.worker_id === user.id && app.status === 'pending') && (
-                      <span className="px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400">Applied (Pending)</span>
-                    )}
-                    {job.applications.some(app => app.worker_id === user.id && app.status === 'approved') && (
-                      <span className="px-3 py-2 text-sm font-medium text-green-600 dark:text-green-400">Approved!</span>
+                    {job.applications.some(
+                      (app) =>
+                        app.worker_id === user.id && app.status === "approved"
+                    ) && (
+                      <span className="px-3 py-2 text-sm font-medium text-green-600 dark:text-green-400">
+                        Approved!
+                      </span>
                     )}
                   </div>
                 ) : (
@@ -510,8 +577,15 @@ export default function JobsPage() {
                           >
                             <div className="flex items-center gap-3">
                               <img
-                                src={applicant.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(applicant.profiles?.full_name || 'User')}&background=4F46E5&color=fff`}
-                                alt={applicant.profiles?.full_name || 'Applicant'}
+                                src={
+                                  applicant.profiles?.avatar_url ||
+                                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                                    applicant.profiles?.full_name || "User"
+                                  )}&background=4F46E5&color=fff`
+                                }
+                                alt={
+                                  applicant.profiles?.full_name || "Applicant"
+                                }
                                 className="w-10 h-10 rounded-full"
                               />
                               <span className="font-medium">
@@ -519,48 +593,52 @@ export default function JobsPage() {
                               </span>
                             </div>
                             <div className="flex gap-2">
-                              {job.conversations && job.conversations.length > 0 && (
-                                <button
-                                  type="button"
-                                  title="Message"
-                                  onClick={() =>
-                                    handleMessage(applicant.worker_id, job.id)
-                                  }
-                                  className="p-2 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                >
-                                  <MessageCircle className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                                </button>
-                              )}
-                              {applicant.status === 'pending' && job.status === 'open' && (
-                                <>
+                              {job.conversations &&
+                                job.conversations.length > 0 && (
                                   <button
                                     type="button"
+                                    title="Message"
                                     onClick={() =>
-                                      handleApprove(job.id, applicant.worker_id, applicant.id)
+                                      handleMessage(applicant.worker_id, job.id)
                                     }
-                                    className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-full"
-                                    title="Approve"
+                                    className="p-2 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
                                   >
-                                    <UserCheck className="w-5 h-5" />
+                                    <MessageCircle className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                                   </button>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleDeny(applicant.id)
-                                    }
-                                    className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full"
-                                    title="Deny"
-                                  >
-                                    <UserX className="w-5 h-5" />
-                                  </button>
-                                </>
-                              )}
-                              {applicant.status === 'approved' && (
+                                )}
+                              {applicant.status === "pending" &&
+                                job.status === "open" && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleApprove(
+                                          job.id,
+                                          applicant.worker_id,
+                                          applicant.id
+                                        )
+                                      }
+                                      className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-full"
+                                      title="Approve"
+                                    >
+                                      <UserCheck className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeny(applicant.id)}
+                                      className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full"
+                                      title="Deny"
+                                    >
+                                      <UserX className="w-5 h-5" />
+                                    </button>
+                                  </>
+                                )}
+                              {applicant.status === "approved" && (
                                 <span className="text-green-600 dark:text-green-400 text-sm font-medium">
                                   Approved
                                 </span>
                               )}
-                              {applicant.status === 'denied' && (
+                              {applicant.status === "denied" && (
                                 <span className="text-red-600 dark:text-red-400 text-sm font-medium">
                                   Denied
                                 </span>
