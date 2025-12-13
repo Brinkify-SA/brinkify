@@ -147,7 +147,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h3 className="font-bold text-lg">Call Us</h3>
-                  <p className="text-gray-600 dark:text-gray-400">+27 XXX XXX XXXX</p>
+                  <p className="text-gray-600 dark:text-gray-400">+27 78 042 0107</p>
                 </div>
               </div>
             </div>
