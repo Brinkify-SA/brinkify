@@ -1,5 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 export const GET = async() => {
     const supabase = await createClient();
@@ -72,4 +72,44 @@ export const GET = async() => {
     //return the chats
     return new Response(JSON.stringify({ data: enrichedChats }), { status: 200 });
 
+}
+
+export const POST = async (request: NextRequest) => {
+    const supabase = await createClient();
+    //get the recipient id(user_id), create a new chat, the owner being the logged in user
+    const data = await request.json();
+    const { user_id } = data;
+
+    //if the user_id is not in the request body params
+    if (!user_id) {
+        return new Response(JSON.stringify({error: "user_id required in the body params" }), { status: 500 });
+    }
+
+    //get the logged in user
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user?.id) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+    }
+
+    //create a new chat
+    const { data: newChat, error: mError } = await supabase.from("chats").insert({
+        owner_id: user.id,
+    }).select().single();
+
+    if (mError) {
+        return new Response(JSON.stringify({ error: mError.message }), { status: 500 });
+    }
+
+    //add the recipient in the chat_users table
+    const { data: membership, error: cuError } = await supabase.from("chat_users").insert({
+        chat_id: newChat.id,
+        user_id: user_id
+    }).select().single();
+
+    if (cuError) {  
+        return new Response(JSON.stringify({ error: cuError.message }), { status: 500 });
+    }
+
+    return new Response(JSON.stringify({ data: newChat }), { status: 200 });
 }
