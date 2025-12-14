@@ -1,152 +1,68 @@
+import { getServerCookie, setServerCookie } from "@/utils/server/cookies"
 import { createClient } from "@/utils/supabase/server";
-import { NextRequest } from "next/server";
 
-/**
- * GET /api/profile - Fetch authenticated user's profile
- * Returns the complete user profile from the profiles table
- */
-export async function GET(request: NextRequest) {
-  try {
-    const supabase = await createClient();
+export const POST = async (request: Request) => { 
+    //GOAL: update the profile of the logged in user
 
-    // Get authenticated user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized", details: "User not authenticated" }),
-        { status: 401 }
-      );
-    }
+  const data = await request.json();
+  
+  let [first_name, last_name] = data.full_name.split(" ");
 
-    // Fetch user profile
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
+  last_name = last_name || ""; //handle case where there is no last name
+  
+  const supabase = await createClient();
+    
+  //get the role of the current user from cookie
+  const appUser = await getServerCookie("app-user");
 
-    if (error) {
-      console.error("Database error fetching profile:", error);
-      return new Response(
-        JSON.stringify({ error: "Failed to fetch profile", details: error.message }),
-        { status: 500 }
-      );
-    }
-
-    if (!profile) {
-      return new Response(
-        JSON.stringify({ error: "Profile not found" }),
-        { status: 404 }
-      );
-    }
-
-    return new Response(JSON.stringify(profile), { status: 200 });
-  } catch (error) {
-    console.error("Error in GET /api/profile:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500 }
-    );
+  if (!appUser) {
+      await supabase.auth.signOut();//sign the user out if they are signed in.
+      return new Response(JSON.stringify({ error: "Unauthenticated" }), { status: 401 });
   }
-}
 
-/**
- * PATCH /api/profile - Update authenticated user's profile
- * Updates specified fields in the profiles table
- */
-export async function PATCH(request: NextRequest) {
-  try {
-    const supabase = await createClient();
+  //update only the first name and last name in the users table
+  const { data: updatedUser, error: userError } = await supabase.from("users").update({
+      first_name,
+      last_name
+  }).eq("id", appUser.id).single();
 
-    // Get authenticated user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized", details: "User not authenticated" }),
-        { status: 401 }
-      );
-    }
+//update the appUser object
+  appUser.first_name = first_name;
+  appUser.last_name = last_name;
 
-    // Parse request body
-    let updateData;
-    try {
-      updateData = await request.json();
-    } catch (e) {
-      return new Response(
-        JSON.stringify({ error: "Invalid JSON in request body" }),
-        { status: 400 }
-      );
-    }
-
-    // Prevent updating certain fields
-    const allowedFields = [
-      "full_name",
-      "avatar_url",
-      "location",
-      "role",
-      "skills",
-      "bio",
-      "hourly_rate",
-      "portfolio",
-      "bank_name",
-      "account_number",
-      "branch_code",
-      "id_number",
-      "company_name",
-      "team_size",
-      "preferred_categories",
-    ];
-
-    // Filter to only allowed fields
-    const filteredData: any = {};
-    for (const key of allowedFields) {
-      if (key in updateData) {
-        filteredData[key] = updateData[key];
-      }
-    }
-
-    // Add updated_at timestamp
-    filteredData.updated_at = new Date().toISOString();
-
-    // Update profile
-    const { data: updatedProfile, error } = await supabase
-      .from("profiles")
-      .update(filteredData)
-      .eq("id", user.id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Database error updating profile:", error);
-      return new Response(
-        JSON.stringify({ error: "Failed to update profile", details: error.message }),
-        { status: 500 }
-      );
-    }
-
-    return new Response(JSON.stringify(updatedProfile), { status: 200 });
-  } catch (error) {
-    console.error("Error in PATCH /api/profile:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500 }
-    );
+  if(userError) {
+      return new Response(JSON.stringify({ error: userError.message }), { status: 400 });
   }
-}
 
-/**
- * POST /api/profile - Legacy endpoint (for backward compatibility)
- * Redirects to PATCH with same data
- */
-export const POST = async (request: Request) => {
-  return new Response(
-    JSON.stringify({ error: 'Method not allowed. Use PATCH to update profile.' }),
-    { status: 405 }
-  );
-};
+  //update the profile of the user based on their role
+  let profileError = null;
+  let profileData = null;
+  switch (appUser.role.toLowerCase()) {
+      case 'worker':
+          {
+              const { data: updatedWorker, error: workerError } = await supabase.from("workers").update({
+                  skills: data.skills,
+                  bio: data.bio
+              }).eq("user_id", appUser.id).select().single();;
+              profileError = workerError;
+              profileData = updatedWorker;
+              appUser.workers = updatedWorker;
+          }
+          break;
+      case 'company':
+          break;
+      case 'customer':
+          break;
+      default:
+          return new Response(JSON.stringify({ error: "Unauthorized: Invalid role" }), { status: 401 });
+  }
+
+  if(profileError) {
+        return new Response(JSON.stringify({ error: profileError.message }), { status: 400 });
+  }
+  
+  //set the updated appUser cookie
+  await setServerCookie("app-user", appUser);
+
+    return new Response(JSON.stringify({ data: profileData }), { status: 200 });
+}
