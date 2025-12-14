@@ -102,7 +102,7 @@ export default function MessageThreadPage() {
       } catch (err) {
         //console.error("Error loading conversation:", err);
         //setError((err as any)?.message || "Failed to load conversation.");
-        router.push("/api/auth/logout");
+        router.push("/messages");
         setLoading(false);
       }
     };

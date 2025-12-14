@@ -6,7 +6,8 @@ export const POST = async (request: Request) => {
     const supabase = await createClient();
     const data = await request.json();
     const { email, password, name, role } = data;
-    const [first_name, last_name] = name.split(" ");
+    let [first_name, last_name] = name.split(" ");
+    last_name = last_name || ""; //handle case where there is no last name
 
     if(!email || !password || !first_name || !last_name) {
         return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400 });
