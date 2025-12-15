@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Home, MessageSquare } from "lucide-react";
+import { Home, MessageSquare, Users } from "lucide-react";
 import type { UserProfile } from "@/utils/types/UserProfile";
 
 export function CustomerDashboard({ user }: { user: UserProfile }) {
@@ -64,6 +64,13 @@ export function CustomerDashboard({ user }: { user: UserProfile }) {
           >
             <MessageSquare className="text-blue-600 dark:text-blue-400 mb-2" />
             <span>Messages</span>
+          </Link>
+          <Link
+            href="/my-jobs"
+            className="flex flex-col items-center justify-center p-4 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition"
+          >
+            <Users className="text-blue-600 dark:text-blue-400 mb-2" />
+            <span>Manage Applicants</span>
           </Link>
         </div>
       </div>

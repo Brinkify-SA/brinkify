@@ -21,13 +21,12 @@ export async function GET() {
         min_budget,
         max_budget,
         created_at,
-        open,
+        status,
         customer_id,
-        images,
-        customers!customer_id (id, user_id, users!inner (id, email))
+        images
       `)
-      // DB uses 'open' as true for active jobs
-      .eq('open', true)
+      // Fetch open jobs
+      .eq('status', 'open')
       .order('created_at', { ascending: false });
     
     // Handle database error
@@ -40,7 +39,7 @@ export async function GET() {
     }
     
     // Format the data for the frontend
-    const formattedJobs = jobs.map(job => ({
+    const formattedJobs = (jobs || []).map(job => ({
       id: job.id,
       title: job.title,
       description: job.description,
@@ -50,11 +49,8 @@ export async function GET() {
       max_budget: job.max_budget,
       created_at: job.created_at,
       images: job.images || [],
-      user: {
-        id: job.customers?.[0]?.id || job.customer_id,
-        full_name: job.customers?.[0]?.users?.[0]?.email?.split('@')[0] || 'Anonymous',
-        avatar_url: '/default-avatar.png'
-      }
+      customer_id: job.customer_id,
+      status: 'open'
     }));
     
     console.log(`Returning ${formattedJobs.length} jobs to feed`);
