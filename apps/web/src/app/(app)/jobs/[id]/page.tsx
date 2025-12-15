@@ -1,123 +1,158 @@
 // app/jobs/[id]/page.tsx
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { ModeToggle } from '@/components/mode-toggle';
-import { 
-  MapPin, 
-  Clock, 
-  DollarSign, 
-  User, 
-  Briefcase, 
-  MessageCircle, 
-  UserCheck, 
-  UserX, 
-  ArrowLeft 
-} from 'lucide-react';
-
-// 🔒 Mock current user
-const MOCK_CURRENT_USER = {
-  id: 'user_456', // Change to 'user_123' for worker
-  name: 'Sarah K.',
-  role: 'customer', // 'worker' or 'customer'
-  avatar: 'https://ui-avatars.com/api/?name=Sarah+K&background=10B981&color=fff',
-};
-
-// 📋 Mock job data
-const MOCK_JOBS: Record<string, any> = {
-  job_001: {
-    id: 'job_001',
-    title: 'Fix kitchen light',
-    description: 'Light not turning on. Need electrician ASAP.',
-    location: 'Pretoria, Centurion',
-    budgetType: 'fixed',
-    budgetAmount: 450,
-    postedAt: '2025-10-25',
-    status: 'open',
-    customer: {
-      id: 'user_456',
-      name: 'Sarah K.',
-      avatar: 'https://ui-avatars.com/api/?name=Sarah+K&background=10B981&color=fff',
-    },
-    applicants: [
-      {
-        id: 'work_001',
-        name: 'John D.',
-        avatar: 'https://ui-avatars.com/api/?name=John+D&background=4F46E5&color=fff',
-        status: 'pending',
-        conversationId: 'conv_101',
-      },
-      {
-        id: 'work_002',
-        name: 'Lerato P.',
-        avatar: 'https://ui-avatars.com/api/?name=Lerato+P&background=F59E0B&color=fff',
-        status: 'pending',
-        conversationId: 'conv_102',
-      },
-    ],
-  },
-  job_101: {
-    id: 'job_101',
-    title: 'Bathroom tiling',
-    description: 'Replace old tiles in main bathroom.',
-    location: 'Johannesburg, Sandton',
-    budgetType: 'fixed',
-    budgetAmount: 3200,
-    postedAt: '2025-10-22',
-    status: 'assigned',
-    customer: {
-      id: 'user_456',
-      name: 'Sarah K.',
-      avatar: 'https://ui-avatars.com/api/?name=Sarah+K&background=10B981&color=fff',
-    },
-    worker: {
-      id: 'work_001',
-      name: 'John D.',
-      avatar: 'https://ui-avatars.com/api/?name=John+D&background=4F46E5&color=fff',
-      conversationId: 'conv_101',
-    },
-  },
-};
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { ModeToggle } from "@/components/mode-toggle";
+import {
+  MapPin,
+  Clock,
+  DollarSign,
+  User,
+  Briefcase,
+  MessageCircle,
+  UserCheck,
+  UserX,
+  ArrowLeft,
+} from "lucide-react";
+import { createClient as createBrowserClient } from "@/utils/supabase/client";
 
 export default function JobDetailPage() {
   const router = useRouter();
   const { id } = useParams();
   const jobId = Array.isArray(id) ? id[0] : id;
 
-  const [user, setUser] = useState<typeof MOCK_CURRENT_USER | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [job, setJob] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setUser(MOCK_CURRENT_USER);
-    if (jobId && MOCK_JOBS[jobId]) {
-      setJob(MOCK_JOBS[jobId]);
-    }
-    setLoading(false);
+    const load = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/jobs/${jobId}/applications`, { credentials: 'include' });
+        if (!res.ok) {
+          // If endpoint fails, try to fetch job from user-jobs or return gracefully
+          console.error('applications endpoint returned', res.status);
+          setJob(null);
+          return;
+        }
+        const payload = await res.json();
+        const applications = payload.applications || [];
+
+        // Derive job info from related jobs record if present
+        let jobInfo = null;
+        if (applications.length > 0 && applications[0].jobs) {
+          jobInfo = applications[0].jobs;
+        } else {
+          // fallback: try fetching job from a user-jobs endpoint or set minimal info
+          const jobRes = await fetch(`/api/user-jobs`, { credentials: 'include' });
+          if (jobRes.ok) {
+            const jobs = await jobRes.json();
+            jobInfo = jobs.find((j: any) => j.id === jobId) || null;
+          }
+        }
+
+        // Map applications into UI-friendly applicants array
+        const applicants = applications.map((a: any) => ({
+          id: a.id,
+          name: a.users?.full_name || a.users?.email || a.worker_id || 'Unknown',
+          avatar: a.users?.avatar_url || a.users?.avatar || '/default-avatar.png',
+          status: a.status || 'pending',
+          conversationId: a.conversation_id || null,
+          raw: a,
+        }));
+
+        setJob({ ...(jobInfo || {}), applicants, status: (jobInfo && jobInfo.status) || 'open' });
+
+        // get current user
+        try {
+          const supabase = createBrowserClient();
+          const { data } = await supabase.auth.getUser();
+          setUser(data?.user || null);
+        } catch (e) {
+          setUser(null);
+        }
+      } catch (err) {
+        console.error('Failed to load job detail', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (jobId) load();
   }, [jobId]);
 
   const isWorker = user?.role === 'worker';
-  const isOwner = job?.customer?.id === user?.id;
-  const isAssignedWorker = job?.worker?.id === user?.id;
+  const isOwner = user && job && (job.customer_id === user.id || job.customer_id === user?.sub);
+  const isAssignedWorker = user && job && job.worker_id === user.id;
 
   const handleBack = () => router.push('/jobs');
   const handleMessage = (convId: string) => router.push(`/messages/${convId}`);
-  const handleApply = () => {
-    console.log('Applying to job...');
-    // In real app: call API
-    alert('Application submitted!');
-  };
-  const handleApprove = (workerId: string) => {
-    console.log(`Approving worker ${workerId}`);
-    alert('Worker approved!');
-  };
-  const handleDeny = (workerId: string) => {
-    console.log(`Denying worker ${workerId}`);
-    alert('Worker denied.');
+
+  const handleApprove = async (applicationId: string) => {
+    if (!jobId || !applicationId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/applications/${applicationId}/approve`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Approve failed');
+      const refreshed = await (await fetch(`/api/jobs/${jobId}/applications`, { credentials: 'include' })).json();
+      const applications = refreshed.applications || [];
+      const applicants = applications.map((a: any) => ({
+        id: a.id,
+        name: a.users?.full_name || a.users?.email || a.worker_id || 'Unknown',
+        avatar: a.users?.avatar_url || a.users?.avatar || '/default-avatar.png',
+        status: a.status || 'pending',
+        conversationId: a.conversation_id || null,
+        raw: a,
+      }));
+      let jobInfo = null;
+      if (applications.length > 0 && applications[0].jobs) jobInfo = applications[0].jobs;
+      setJob({ ...(jobInfo || {}), applicants, status: (jobInfo && jobInfo.status) || 'assigned' });
+      alert('Worker approved and assigned');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to approve worker');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (loading || !user) {
+  const handleDeny = async (applicationId: string) => {
+    if (!jobId || !applicationId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/applications/${applicationId}/deny`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Deny failed');
+      const refreshed = await (await fetch(`/api/jobs/${jobId}/applications`, { credentials: 'include' })).json();
+      const applications = refreshed.applications || [];
+      const applicants = applications.map((a: any) => ({
+        id: a.id,
+        name: a.users?.full_name || a.users?.email || a.worker_id || 'Unknown',
+        avatar: a.users?.avatar_url || a.users?.avatar || '/default-avatar.png',
+        status: a.status || 'pending',
+        conversationId: a.conversation_id || null,
+        raw: a,
+      }));
+      let jobInfo = null;
+      if (applications.length > 0 && applications[0].jobs) jobInfo = applications[0].jobs;
+      setJob({ ...(jobInfo || {}), applicants, status: (jobInfo && jobInfo.status) || 'open' });
+      alert('Application denied');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to deny application');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <p className="text-gray-600 dark:text-gray-300">Loading job details...</p>
