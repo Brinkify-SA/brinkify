@@ -27,7 +27,6 @@ import {
   Users,
   MoreVertical,
 } from "lucide-react";
-import { getClientCookie } from "@/utils/client/cookies";
 
 // 🔹 Define TypeScript interfaces
 interface Worker {
@@ -76,6 +75,224 @@ const WORKER_SUBSCRIPTIONS: { [key: string]: "basic" | "premium" | "elite" } = {
   "w-106": "basic", // Amahle Zwane
 };
 
+// 🔒 Mock Profiles
+const MOCK_PROFILES: Profile[] = [
+  {
+    id: "w-101",
+    type: "worker",
+    name: "Thabo Mthembu",
+    avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Thabo",
+    verified: true,
+    rating: 4.9,
+    reviews: 47,
+    category: "Carpentry",
+    location: "Pretoria, Gauteng",
+    bio: "Expert carpenter specializing in cabinetry and deck construction.",
+  },
+  {
+    id: "w-102",
+    type: "worker",
+    name: "Naledi Khubone",
+    avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Naledi",
+    verified: true,
+    rating: 4.8,
+    reviews: 63,
+    category: "Electrical",
+    location: "Johannesburg, Gauteng",
+    bio: "Certified electrician: rewiring, solar setups, and safe installations.",
+  },
+  {
+    id: "w-103",
+    type: "worker",
+    name: "Sarah Nkosi",
+    avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Sarah",
+    verified: false,
+    rating: 4.5,
+    reviews: 12,
+    category: "Tiling",
+    location: "Durban, KZN",
+    bio: "Tiling specialist for bathrooms and outdoor areas.",
+  },
+  {
+    id: "c-201",
+    type: "company",
+    name: "BrightHome Contractors",
+    avatar: "https://api.dicebear.com/7.x/initials/svg?seed=BrightHome",
+    verified: true,
+    rating: 4.7,
+    reviews: 128,
+    category: "General Contracting",
+    location: "Cape Town, Western Cape",
+    bio: "Full-service home contracting company: renovations, electrical, plumbing.",
+  },
+  {
+    id: "w-104",
+    type: "worker",
+    name: "Kagiso Molefe",
+    avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Kagiso",
+    verified: true,
+    rating: 4.8,
+    reviews: 55,
+    category: "Plumbing",
+    location: "Pretoria, Gauteng",
+    bio: "Emergency and maintenance plumbing services.",
+  },
+  {
+    id: "c-202",
+    type: "company",
+    name: "EcoSolar Installations",
+    avatar: "https://api.dicebear.com/7.x/initials/svg?seed=EcoSolar",
+    verified: false,
+    rating: 4.6,
+    reviews: 34,
+    category: "Renewable Energy",
+    location: "Stellenbosch, Western Cape",
+    bio: "Solar panel and battery system installers for homes and small businesses.",
+  },
+  {
+    id: "w-105",
+    type: "worker",
+    name: "Lerato Dlamini",
+    avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Lerato",
+    verified: true,
+    rating: 4.9,
+    reviews: 71,
+    category: "Tiling",
+    location: "Durban, KZN",
+    bio: "Precision tiler with waterproofing experience.",
+  },
+  {
+    id: "w-106",
+    type: "worker",
+    name: "Amahle Zwane",
+    avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Amahle",
+    verified: false,
+    rating: 4.7,
+    reviews: 44,
+    category: "Carpentry",
+    location: "Randburg, Gauteng",
+    bio: "Decks and outdoor structures specialist.",
+  },
+];
+
+// 🔒 Mock Feed Posts — now properly defined
+const MOCK_FEED_POSTS: FeedPost[] = [
+  {
+    id: "post-1",
+    workerId: "w-101",
+    title: "Custom Wooden Deck Installation",
+    description:
+      "Built a stunning 50m² hardwood deck with integrated lighting and safety rails for a family home in Waterkloof.",
+    category: "Carpentry",
+    location: "Pretoria, Gauteng",
+    images: [
+      "https://images.unsplash.com/photo-1600585154084-4e5b76719a23?auto=format&fit=crop&w=600&h=400",
+      "https://images.unsplash.com/photo-1590490355227-8e9c11d6d682?auto=format&fit=crop&w=600&h=400",
+    ],
+    tags: ["deck", "outdoor", "custom", "wood"],
+    price: "R12,500",
+    completionTime: "3 weeks",
+    likes: 24,
+    comments: 8,
+    saves: 15,
+    views: 320,
+    createdAt: "2025-10-15T10:00:00Z",
+    verified: true,
+    worker: {
+      id: "w-101",
+      name: "Thabo Mthembu",
+      avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Thabo",
+      rating: 4.9,
+      reviews: 47,
+    },
+  },
+  {
+    id: "post-2",
+    workerId: "w-102",
+    title: "Full Home Rewiring & Solar Setup",
+    description:
+      "Complete electrical overhaul with solar battery integration for off-grid capability in a suburban home.",
+    category: "Electrical",
+    location: "Johannesburg, Gauteng",
+    images: [
+      "https://images.unsplash.com/photo-1607195770388-6c65d5e75694?auto=format&fit=crop&w=600&h=400",
+    ],
+    tags: ["solar", "rewiring", "smart-home", "energy"],
+    price: "R45,000",
+    completionTime: "6 weeks",
+    likes: 38,
+    comments: 12,
+    saves: 22,
+    views: 510,
+    createdAt: "2025-10-20T14:30:00Z",
+    verified: true,
+    worker: {
+      id: "w-102",
+      name: "Naledi Khubone",
+      avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Naledi",
+      rating: 4.8,
+      reviews: 63,
+    },
+  },
+  {
+    id: "post-3",
+    workerId: "w-105",
+    title: "Luxury Bathroom Tiling",
+    description:
+      "Full bathroom renovation with premium porcelain tiles and waterproofing in Umhlanga.",
+    category: "Tiling",
+    location: "Durban, KZN",
+    images: [
+      "https://images.unsplash.com/photo-1551695361-2a7e3d31e540?auto=format&fit=crop&w=600&h=400",
+      "https://images.unsplash.com/photo-1584622650111-983b4015a2c8?auto=format&fit=crop&w=600&h=400",
+    ],
+    tags: ["bathroom", "tiling", "waterproof", "luxury"],
+    price: "R8,200",
+    completionTime: "10 days",
+    likes: 31,
+    comments: 7,
+    saves: 19,
+    views: 280,
+    createdAt: "2025-11-01T09:15:00Z",
+    verified: true,
+    worker: {
+      id: "w-105",
+      name: "Lerato Dlamini",
+      avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Lerato",
+      rating: 4.9,
+      reviews: 71,
+    },
+  },
+  {
+    id: "post-4",
+    workerId: "w-104",
+    title: "Emergency Pipe Burst Repair",
+    description:
+      "24/7 emergency service: fixed burst geyser pipe and prevented major water damage.",
+    category: "Plumbing",
+    location: "Pretoria, Gauteng",
+    images: [
+      "https://images.unsplash.com/photo-1610715352658-bcd9c43a0e89?auto=format&fit=crop&w=600&h=400",
+    ],
+    tags: ["emergency", "plumbing", "geyser", "repair"],
+    price: "R1,800",
+    completionTime: "Same day",
+    likes: 18,
+    comments: 5,
+    saves: 8,
+    views: 150,
+    createdAt: "2025-11-10T18:45:00Z",
+    verified: true,
+    worker: {
+      id: "w-104",
+      name: "Kagiso Molefe",
+      avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Kagiso",
+      rating: 4.8,
+      reviews: 55,
+    },
+  },
+];
+
 export default function FeedPage() {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -90,8 +307,9 @@ export default function FeedPage() {
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [savedPosts, setSavedPosts] = useState<Set<string>>(new Set());
   const [filterOpen, setFilterOpen] = useState(false);
-  const [user, setUser] = useState();
-  const [posts, setPosts] = useState<any[]>();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isHomeowner, setIsHomeowner] = useState(false);
+  const [posts, setPosts] = useState<FeedPost[]>(MOCK_FEED_POSTS);
   const [loadingPosts, setLoadingPosts] = useState(true);
 
   // Updated category list to match post categories
@@ -107,8 +325,9 @@ export default function FeedPage() {
 
   // Check user type on mount
   useEffect(() => {
-    const appUser = getClientCookie("app-user");
-    setUser(appUser);
+    const email = localStorage.getItem("userEmail");
+    setUserEmail(email);
+    setIsHomeowner(email ? !email.includes("worker") : false);
   }, []);
 
   // Fetch jobs from server feed API
@@ -259,6 +478,11 @@ export default function FeedPage() {
   const contactWorker = (post: FeedPost) => {
     if (!isHomeowner) {
       alert("Only homeowners can contact workers");
+      return;
+    }
+
+    if (!userEmail) {
+      alert("Please log in first");
       return;
     }
 
