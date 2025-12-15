@@ -279,7 +279,7 @@ export default function MessagesPage() {
                         </h2>
                         <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                           {moment(
-                            conv.messages[conv.messages.length - 1].created_at
+                            conv.messages[conv.messages.length - 1]?.created_at
                           ).fromNow()}
                         </span>
                       </div>
