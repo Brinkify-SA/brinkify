@@ -45,14 +45,14 @@ const { data: userProfile, error: profileError } = await supabase
         return new Response(JSON.stringify({ error: "Unexpected Error occured", msg: profileError.message, lcl: "profile_fetch" }), { status: 400 });
     }
 
-    if (userProfile.workers?.id) {
+    if (userProfile.workers) {
         userProfile.role = "worker";
-    } else if (userProfile.companies?.id) {
+    } else if (userProfile.companies) {
         userProfile.role = "company";
-    } else if (userProfile.customers?.id) {
+    } else if (userProfile.customers) {
         userProfile.role = "customer";
     } else {
-        return new Response(JSON.stringify({ error: "User profile not found", lcl: "profile_fetch" }), { status: 400 });
+        return new Response(JSON.stringify({ error: "User profile not found", lcl: "profile_fetch", userProfile }), { status: 400 });
     }
 
     //if no subscription plan, initialize a free trial plan

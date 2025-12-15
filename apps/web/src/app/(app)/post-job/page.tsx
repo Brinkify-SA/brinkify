@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useRef } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { ModeToggle } from '@/components/mode-toggle';
+import { useState, useRef } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ModeToggle } from "@/components/mode-toggle";
 import {
   Home,
   Tag,
@@ -11,20 +11,18 @@ import {
   Calendar,
   DollarSign,
   Camera,
-  X
-} from 'lucide-react';
+  X,
+} from "lucide-react";
 const MOCK_USER = {
-  id: 'mock-customer-id',
-  full_name: 'Demo User',
-  role: 'customer' as const,
-  location: 'Johannesburg, Sandton',
+  id: "mock-customer-id",
+  full_name: "Demo User",
+  role: "customer" as const,
 };
 
 interface JobFormData {
   title: string;
   description: string;
   category: string;
-  location: string;
   min_budget?: number;
   max_budget?: number;
   minBudget?: number; // providing both keys to support different backend naming
@@ -34,14 +32,14 @@ interface JobFormData {
 }
 
 const CATEGORIES = [
-  { id: 'electricians', name: 'Electricians', icon: '⚡' },
-  { id: 'plumbers', name: 'Plumbers', icon: '💧' },
-  { id: 'carpenters', name: 'Carpenters', icon: '🪚' },
-  { id: 'painters', name: 'Painters', icon: '🎨' },
-  { id: 'handymen', name: 'Handymen', icon: '🛠️' },
-  { id: 'gardeners', name: 'Gardeners', icon: '🌿' },
-  { id: 'cleaners', name: 'Cleaners', icon: '🧹' },
-  { id: 'tilers', name: 'Tilers', icon: '🧱' },
+  { id: "electricians", name: "Electricians", icon: "⚡" },
+  { id: "plumbers", name: "Plumbers", icon: "💧" },
+  { id: "carpenters", name: "Carpenters", icon: "🪚" },
+  { id: "painters", name: "Painters", icon: "🎨" },
+  { id: "handymen", name: "Handymen", icon: "🛠️" },
+  { id: "gardeners", name: "Gardeners", icon: "🌿" },
+  { id: "cleaners", name: "Cleaners", icon: "🧹" },
+  { id: "tilers", name: "Tilers", icon: "🧱" },
 ];
 
 export default function PostJobPage() {
@@ -49,14 +47,17 @@ export default function PostJobPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [formData, setFormData] = useState<JobFormData>({
-    title: '',
-    description: '',
-    category: '',
-    location: MOCK_USER.location,
+    title: "",
+    description: "",
+    category: "",
     images: [],
   });
   const [previewImages, setPreviewImages] = useState<string[]>([]);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   // NEW: loading state to prevent duplicate submissions
   const [loading, setLoading] = useState(false);
@@ -70,35 +71,49 @@ export default function PostJobPage() {
   };
 
   const handleLogout = () => {
-    router.push('/auth/login');
+    router.push("/auth/login");
   };
 
   const handleBack = () => {
-    router.push('/dashboard');
+    router.push("/dashboard");
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+
     if (files.length + previewImages.length > 4) {
-      setMessage({ type: 'error', text: 'You can upload up to 4 images.' });
+      setMessage({ type: "error", text: "You can upload up to 4 images." });
       return;
     }
-    const fakeUrls = files.map((file) => URL.createObjectURL(file));
-    setPreviewImages((prev) => [...prev, ...fakeUrls]);
-    setFormData((prev) => ({
-      ...prev,
-      images: [...prev.images, ...fakeUrls],
-    }));
-    setMessage({ type: 'success', text: 'Images selected (not uploaded).' });
-    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    // generate previews
+    const previews = files.map((file) => URL.createObjectURL(file));
+
+    setPreviewImages((prev) => [...prev, ...previews]);
+    setSelectedFiles((prev) => [...prev, ...files]);
+
+    setMessage({
+      type: "success",
+      text: "Images selected (not uploaded yet).",
+    });
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const removeImage = (index: number) => {
-    const newPreviews = previewImages.filter((_, i) => i !== index);
-    const newImageUrls = formData.images.filter((_, i) => i !== index);
-    setPreviewImages(newPreviews);
-    setFormData({ ...formData, images: newImageUrls });
-    setMessage({ type: 'success', text: 'Image removed.' });
+    // revoke object URL to avoid memory leaks
+    URL.revokeObjectURL(previewImages[index]);
+
+    setPreviewImages((prev) => prev.filter((_, i) => i !== index));
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+
+    // only remove uploaded image if it exists at this index
+    setFormData((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }));
+
+    setMessage({ type: "success", text: "Image removed." });
   };
 
   // ====== UPDATED handleSubmit that POSTS to your backend ======
@@ -106,72 +121,72 @@ export default function PostJobPage() {
     e.preventDefault();
     setMessage(null);
 
-    // Frontend validation
-    if (!formData.title.trim() || !formData.description.trim() || !formData.category || !formData.location.trim()) {
-      setMessage({ type: 'error', text: 'Please fill in all required fields.' });
+    if (
+      !formData.title.trim() ||
+      !formData.description.trim() ||
+      !formData.category
+    ) {
+      setMessage({
+        type: "error",
+        text: "Please fill in all required fields.",
+      });
       return;
     }
 
-    // Prevent duplicate submissions
     if (loading) return;
     setLoading(true);
 
-    // Prepare payload — include both naming variants for budgets (min_budget and minBudget)
-    const payload = {
-      title: formData.title.trim(),
-      description: formData.description.trim(),
-      category: formData.category,
-      location: formData.location.trim(),
-      // send both variants so server can accept whichever it expects
-      min_budget: formData.min_budget ?? null,
-      max_budget: formData.max_budget ?? null,
-      minBudget: formData.minBudget ?? formData.min_budget ?? null,
-      maxBudget: formData.maxBudget ?? formData.max_budget ?? null,
-      preferred_date: formData.preferred_date ?? null,
-      // you currently store preview URLs only; server can ignore or use them
-      images: formData.images,
-    };
-
     try {
-      // IMPORTANT: credentials: 'include' ensures cookies (like "app-user") are sent to the server
-        const res = await fetch('/api/post-job', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        // send cookies to server so backend can read user id from cookie
-        credentials: 'include',
-        body: JSON.stringify(payload),
+      const fd = new FormData();
+
+      // job fields
+      fd.append("title", formData.title.trim());
+      fd.append("description", formData.description.trim());
+      fd.append("category", formData.category);
+
+      if (formData.min_budget != null)
+        fd.append("minBudget", String(formData.min_budget));
+      if (formData.max_budget != null)
+        fd.append("maxBudget", String(formData.max_budget));
+      if (formData.preferred_date)
+        fd.append("preferredDate", formData.preferred_date);
+
+      // images (FILES, not URLs)
+      selectedFiles.forEach((file) => {
+        fd.append("images", file); // same key = array
       });
 
-      // handle common responses
+      const res = await fetch("/api/jobs", {
+        method: "POST",
+        credentials: "include",
+        body: fd,
+      });
+
       if (res.status === 401) {
-        setMessage({ type: 'error', text: 'You are not authenticated. Please log in.' });
-        setLoading(false);
+        setMessage({ type: "error", text: "You are not authenticated." });
         return;
       }
 
       const json = await res.json();
 
       if (!res.ok) {
-        // If server returned an error message, show it
-        setMessage({ type: 'error', text: json?.error || 'Failed to post job. Try again.' });
-        setLoading(false);
+        setMessage({
+          type: "error",
+          text: json?.error || "Failed to post job.",
+        });
         return;
       }
 
-      // Success: show message and redirect
-      setMessage({ type: 'success', text: json?.message || 'Job posted successfully.' });
-      setLoading(false);
-
-      // redirect to feed so the newly posted job is visible immediately
-      setTimeout(() => router.push('/feed'), 1000);
+      setMessage({ type: "success", text: "Job posted successfully." });
+      setTimeout(() => router.push("/feed"), 1000);
     } catch (err) {
-      console.error('Network or unexpected error:', err);
-      setMessage({ type: 'error', text: 'Network error. Please try again.' });
+      console.error(err);
+      setMessage({ type: "error", text: "Network error. Please try again." });
+    } finally {
       setLoading(false);
     }
   };
+
   // ====== end updated handleSubmit ======
 
   return (
@@ -188,7 +203,9 @@ export default function PostJobPage() {
             <span className="hidden sm:inline">Cancel</span>
           </button>
 
-          <h1 className="text-lg font-bold text-gray-800 dark:text-white">Post a Job</h1>
+          <h1 className="text-lg font-bold text-gray-800 dark:text-white">
+            Post a Job
+          </h1>
 
           <div className="hidden md:block">
             <ModeToggle />
@@ -199,8 +216,19 @@ export default function PostJobPage() {
             className="md:hidden text-blue-600 dark:text-blue-400 focus:outline-none"
             aria-label="Toggle menu"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
             </svg>
           </button>
         </div>
@@ -208,18 +236,56 @@ export default function PostJobPage() {
 
       {menuOpen && (
         <div className="md:hidden fixed inset-0 z-[60]">
-          <div className="absolute inset-0 bg-black/50" onClick={toggleMenu}></div>
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={toggleMenu}
+          ></div>
           <div className="absolute left-0 top-0 h-full w-3/4 bg-blue-600 text-white p-6 pt-16">
-            <button onClick={toggleMenu} className="absolute top-4 right-4 text-white" aria-label="Close menu">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <button
+              onClick={toggleMenu}
+              className="absolute top-4 right-4 text-white"
+              aria-label="Close menu"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
             <nav className="flex flex-col space-y-4 mt-6">
-              <button onClick={() => navigate('/')} className="text-left text-lg font-medium">Home</button>
-              <button onClick={() => navigate('/explore')} className="text-left text-lg font-medium">Explore</button>
-              <button onClick={() => navigate('/about')} className="text-left text-lg font-medium">About Us</button>
-              <button onClick={handleLogout} className="text-left text-lg font-medium">Log Out</button>
+              <button
+                onClick={() => navigate("/")}
+                className="text-left text-lg font-medium"
+              >
+                Home
+              </button>
+              <button
+                onClick={() => navigate("/explore")}
+                className="text-left text-lg font-medium"
+              >
+                Explore
+              </button>
+              <button
+                onClick={() => navigate("/about")}
+                className="text-left text-lg font-medium"
+              >
+                About Us
+              </button>
+              <button
+                onClick={handleLogout}
+                className="text-left text-lg font-medium"
+              >
+                Log Out
+              </button>
             </nav>
           </div>
         </div>
@@ -230,9 +296,9 @@ export default function PostJobPage() {
           {message && (
             <div
               className={`mb-6 p-3 rounded-lg text-sm ${
-                message.type === 'success'
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                  : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                message.type === "success"
+                  ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                  : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
               }`}
             >
               {message.text}
@@ -242,14 +308,19 @@ export default function PostJobPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Job Title */}
             <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label
+                htmlFor="title"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
                 Job Title <span className="text-red-500">*</span>
               </label>
               <input
                 id="title"
                 type="text"
                 value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
                 placeholder="e.g. Fix leaking kitchen tap"
                 required
                 className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
@@ -258,13 +329,18 @@ export default function PostJobPage() {
 
             {/* Description */}
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label
+                htmlFor="description"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
                 Description <span className="text-red-500">*</span>
               </label>
               <textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 rows={4}
                 placeholder="Describe the job in detail..."
                 required
@@ -282,36 +358,19 @@ export default function PostJobPage() {
                   <button
                     key={cat.id}
                     type="button"
-                    onClick={() => setFormData({ ...formData, category: cat.id })}
+                    onClick={() =>
+                      setFormData({ ...formData, category: cat.id })
+                    }
                     className={`flex flex-col items-center justify-center p-3 rounded-lg border transition ${
                       formData.category === cat.id
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                        : 'border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                        : "border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
                     }`}
                   >
                     <span className="text-2xl mb-1">{cat.icon}</span>
                     <span className="text-xs font-medium">{cat.name}</span>
                   </button>
                 ))}
-              </div>
-            </div>
-
-            {/* Location */}
-            <div>
-              <label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Location <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  id="location"
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  placeholder="e.g. Johannesburg, Sandton"
-                  required
-                  className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-                />
               </div>
             </div>
 
@@ -322,30 +381,52 @@ export default function PostJobPage() {
               </label>
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1 relative">
-                  <label htmlFor="minBudget" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label
+                    htmlFor="minBudget"
+                    className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  >
                     Minimum Budget
                   </label>
-                  <span className="absolute left-3 top-10 transform -translate-y-1/2 text-gray-500 font-semibold">R</span>
+                  <span className="absolute left-3 top-10 transform -translate-y-1/2 text-gray-500 font-semibold">
+                    R
+                  </span>
                   <input
                     id="minBudget"
                     type="number"
-                    value={(formData.min_budget ?? formData.minBudget) || ''}
-                    onChange={(e) => setFormData({ ...formData, min_budget: parseFloat(e.target.value) || undefined, minBudget: parseFloat(e.target.value) || undefined })}
+                    value={(formData.min_budget ?? formData.minBudget) || ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        min_budget: parseFloat(e.target.value) || undefined,
+                        minBudget: parseFloat(e.target.value) || undefined,
+                      })
+                    }
                     min="0"
                     placeholder="e.g. 500"
                     className="w-full pl-8 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                   />
                 </div>
                 <div className="flex-1 relative">
-                  <label htmlFor="maxBudget" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label
+                    htmlFor="maxBudget"
+                    className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  >
                     Maximum Budget
                   </label>
-                  <span className="absolute left-3 top-10 transform -translate-y-1/2 text-gray-500 font-semibold">R</span>
+                  <span className="absolute left-3 top-10 transform -translate-y-1/2 text-gray-500 font-semibold">
+                    R
+                  </span>
                   <input
                     id="maxBudget"
                     type="number"
-                    value={(formData.max_budget ?? formData.maxBudget) || ''}
-                    onChange={(e) => setFormData({ ...formData, max_budget: parseFloat(e.target.value) || undefined, maxBudget: parseFloat(e.target.value) || undefined })}
+                    value={(formData.max_budget ?? formData.maxBudget) || ""}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        max_budget: parseFloat(e.target.value) || undefined,
+                        maxBudget: parseFloat(e.target.value) || undefined,
+                      })
+                    }
                     min="0"
                     placeholder="e.g. 1500"
                     className="w-full pl-8 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
@@ -356,7 +437,10 @@ export default function PostJobPage() {
 
             {/* Preferred Date */}
             <div>
-              <label htmlFor="preferredDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label
+                htmlFor="preferredDate"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
                 Preferred Date (Optional)
               </label>
               <div className="relative">
@@ -364,9 +448,11 @@ export default function PostJobPage() {
                 <input
                   id="preferredDate"
                   type="date"
-                  value={formData.preferred_date || ''}
-                  onChange={(e) => setFormData({ ...formData, preferred_date: e.target.value })}
-                  min={new Date().toISOString().split('T')[0]}
+                  value={formData.preferred_date || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, preferred_date: e.target.value })
+                  }
+                  min={new Date().toISOString().split("T")[0]}
                   className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
                 />
               </div>
@@ -426,20 +512,11 @@ export default function PostJobPage() {
               disabled={loading}
               className="w-full py-3 px-4 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition disabled:opacity-60"
             >
-              {loading ? 'Posting...' : 'Post Job'}
+              {loading ? "Posting..." : "Post Job"}
             </button>
           </form>
         </div>
       </main>
-
-      <footer className="bg-white dark:bg-gray-950 border-t dark:border-gray-800 py-6 text-center">
-        <div className="container mx-auto px-4">
-          <span className="text-lg font-bold text-blue-600 dark:text-blue-400">Brinkify SA</span>
-          <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm">
-            © {new Date().getFullYear()} Connecting skilled workers with homeowners across South Africa.
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }
