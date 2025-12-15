@@ -57,13 +57,14 @@ export default function MessageThreadPage() {
           const appUser = getClientCookie("app-user");
           console.log("Current user:", appUser);
           if (payload.new.sender_id === appUser?.id) return; //skip if the message is from the current user
-          setMessages((prev) => [...prev, payload.new as Message]);
+          fetchConversationData(false);
+          //setMessages((prev) => [...prev, payload.new as Message]);
           //sends double messages
         }
       )
       .subscribe();
-    const fetchConversationData = async () => {
-      setLoading(true);
+    const fetchConversationData = async (loadMessages = true) => {
+      loadMessages && setLoading(true);
       setError(null);
 
       try {

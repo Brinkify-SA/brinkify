@@ -1,3 +1,4 @@
+import { decrypt } from "@/utils/server/crypto";
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -36,7 +37,15 @@ export const GET = async() => {
         chat_users(*, users(*))
     `)
     .or(`owner_id.eq.${user.id},id.in.(${chatIds.join(",")})`)
-    .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false });
+    
+    //decrypt the messages in each chat
+    chats?.forEach((chat : any) => {
+        chat.messages.forEach((message : any) => {
+            message.content = decrypt(message.content);
+        });
+    });
+    
 
     if (error) {
         return new Response(JSON.stringify({ error: error.message }), { status: 500 });

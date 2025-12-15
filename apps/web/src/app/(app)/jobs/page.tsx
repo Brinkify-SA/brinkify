@@ -75,7 +75,7 @@ export default function JobsPage() {
       setError(null);
       try {
         // Fetch jobs from the real API feed endpoint
-        const response = await fetch("/api/feed", {
+        const response = await fetch("/api/jobs", {
           credentials: "include",
         });
 

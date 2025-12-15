@@ -1,3 +1,4 @@
+import { decrypt, encrypt } from "@/utils/server/crypto";
 import { createClient } from "@/utils/supabase/server";
 
 export const GET = async (
@@ -50,6 +51,15 @@ export const GET = async (
         .eq("id", chatId)
         .order("created_at", { ascending: true })
         .single();
+    
+    //decrypt the messages
+    const messages = chat?.messages?.map((message : any) => {
+        return {
+            ...message,
+            content: decrypt(message.content),
+        };
+    });
+    chat.messages = messages;
 
     //check if the user is the owner
         const isOwner = chat.owner_id === user.id;
@@ -84,7 +94,8 @@ context: { params: Promise<{ id: string }> }) => {
     const supabase = await createClient();
     const chatId = (await context.params).id;
     const data = await request.json();
-    const { message } = data;
+    let { message } = data;
+
 
     //get the logged in user
     const { data: { user } } = await supabase.auth.getUser();
@@ -119,13 +130,16 @@ context: { params: Promise<{ id: string }> }) => {
     if (mError) {
         return new Response(JSON.stringify({ error: mError.message }), { status: 500 });
     }
+
+    //encrypt the message, for end to end encryption
+    const encryptedMessage = encrypt(message);
     //insert the message
     const { data: newMessage, error } = await supabase
         .from("messages")
         .insert({
             chat_id: chatId,
             sender_id: user.id,
-            content: message,
+            content: encryptedMessage,
         })
         .select("*, users(*)")
         .single();
