@@ -101,6 +101,50 @@ export const POST = async (request: NextRequest) => {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
     }
 
+    //check if the user is trying to create a chat with themselves
+    if (user.id === user_id) {
+        return new Response(JSON.stringify({ error: "Cannot create chat with yourself" }), { status: 400 });
+    }
+    //check if a chat already exists between the two users
+    //check if there is a chat where the owner_id is the logged in user and the recipient is in chat_users
+    const { data: existingChats, error: eError } = await supabase.from("chats")
+        .select(`
+            id,
+            owner_id,
+            chat_users(*, users(*))
+        `).eq("owner_id", user.id)
+        .eq("chat_users.user_id", user_id);
+    
+    //if there is an error, return
+    if (eError) {
+            return new Response(JSON.stringify({ error: eError.message }), { status: 500 });
+    }
+
+    //if a chat exists, return it
+    if (existingChats && existingChats.length > 0) {
+        return new Response(JSON.stringify({ data: existingChats[0] }), { status: 200 });
+    }
+    //if no chat exists, check the reverse
+    if(!existingChats) {
+        //check if there is a chat where the owner_id is the recipient and the logged in user is in chat_users
+        const { data: reverseChats, error: rError } = await supabase.from("chats")
+            .select(`
+                id, 
+                owner_id,
+                chat_users(*, users(*))
+            `)
+            .eq("owner_id", user_id)
+        .eq("chat_users.user_id", user.id);
+
+        if (rError) {
+            return new Response(JSON.stringify({ error: rError.message }), { status: 500 });
+        }
+
+        //if a chat exists, return it
+        if (reverseChats && reverseChats.length > 0) {
+            return new Response(JSON.stringify({ data: reverseChats[0] }), { status: 200 });
+        }
+    }
     //create a new chat
     const { data: newChat, error: mError } = await supabase.from("chats").insert({
         owner_id: user.id,
