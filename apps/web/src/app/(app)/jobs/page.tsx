@@ -33,28 +33,21 @@ interface Job {
   location: string;
   min_budget?: number;
   max_budget?: number;
-  preferred_date?: string;
-  images?: string[];
   created_at: string;
   status: "open" | "assigned" | "in-progress" | "completed" | "cancelled";
-  customer_id: string;
-  worker_id?: string;
-  profiles: {
-    full_name: string;
-    avatar_url: string;
-  };
-  applications: {
+  owner_id: string;  // homeowner who posted
+  worker_id?: string;  // assigned worker (nullable)
+  images?: string[];
+  owner?: { id: string; full_name?: string | null; avatar_url?: string | null };
+  profiles_owner?: { id: string; email?: string; full_name?: string };
+  profiles_worker?: { id: string; email?: string; full_name?: string };
+  applications?: {
     id: string;
     worker_id: string;
     status: "pending" | "approved" | "denied";
-    profiles: {
-      full_name: string;
-      avatar_url: string;
-    };
+    profiles?: { full_name?: string; avatar_url?: string };
   }[];
-  conversations: {
-    id: string;
-  }[];
+  conversations?: { id: string }[];
 }
 
 export default function JobsPage() {
@@ -74,28 +67,46 @@ export default function JobsPage() {
       setLoading(true);
       setError(null);
       try {
-        // Fetch jobs from the real API feed endpoint
-        const response = await fetch("/api/jobs", {
+        // Fetch user profile
+        const userRes = await fetch("/api/user/profile", {
           credentials: "include",
         });
+        
+        let userData = null;
+        if (userRes.ok) {
+          userData = await userRes.json();
+          setUser({
+            id: userData.id,
+            full_name: (userData.first_name || "") + " " + (userData.last_name || ""),
+            role: userData.role || "worker",
+            location: userData.location || "South Africa",
+            plan_name: userData.plan?.name || "Professional",
+            job_leads_used: 0,
+            leads_limit: 50,
+          });
+        }
+
+        // Fetch jobs
+        const response = await fetch(
+          userData && userData.role !== "worker" ? "/api/user-jobs" : "/api/feed",
+          { credentials: "include" }
+        );
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const jobsData = await response.json();
+        let jobsData: Job[] = await response.json();
+        
+        // If user is a worker, filter by location
+        if (userData && userData.role === "worker" && userData.location) {
+          const userCity = userData.location.split(",")[0]?.trim().toLowerCase();
+          jobsData = jobsData.filter((job: Job) => 
+            job.location?.toLowerCase().includes(userCity)
+          );
+        }
+        
         setJobs(jobsData);
-
-        // Set dummy user (will be fetched from auth in real implementation)
-        setUser({
-          id: "1",
-          full_name: "User",
-          role: "worker",
-          location: "South Africa",
-          plan_name: "Professional",
-          job_leads_used: 0,
-          leads_limit: 50,
-        });
       } catch (err) {
         console.error("Error loading jobs:", err);
         setError((err as any)?.message || "Failed to load jobs.");
@@ -106,6 +117,26 @@ export default function JobsPage() {
 
     fetchJobsFromAPI();
   }, [router]);
+
+  // Auto-enter edit mode if ?edit={jobId} is present (owners only)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get('edit');
+    if (!editId || !user || user.role === 'worker') return;
+    const target = jobs.find((j) => j.id === editId);
+    if (!target) return;
+    setEditingJobId(target.id);
+    setEditForm({
+      title: target.title,
+      description: target.description,
+      category: target.category,
+      location: target.location,
+      min_budget: target.min_budget,
+      max_budget: target.max_budget,
+      images: target.images || [],
+    });
+  }, [user, jobs]);
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
 
@@ -127,38 +158,115 @@ export default function JobsPage() {
     if (!user) return;
     setLoading(true);
     try {
-      // Mock apply functionality
-      setMessage({ type: "success", text: "Application submitted!" });
-      // In real app, update jobs to show applied status
-      setJobs(
-        jobs.map((job) =>
-          job.id === jobId
-            ? {
-                ...job,
-                applications: [
-                  ...(job.applications || []),
-                  {
-                    id: `app-${Date.now()}`,
-                    worker_id: user.id,
-                    status: "pending",
-                    profiles: {
-                      full_name: user.full_name,
-                      avatar_url:
-                        "https://api.dicebear.com/7.x/avataaars/svg?seed=" +
-                        user.full_name,
-                    },
-                  },
-                ],
-              }
-            : job
-        )
-      );
+      const response = await fetch(`/api/jobs/${jobId}/applications`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Apply error:', errorData);
+        throw new Error(errorData.error || errorData.details || "Failed to apply to job");
+      }
+
+      const target = jobs.find((j) => j.id === jobId);
+      const loc = target?.location ? ` in ${target.location}` : "";
+      setMessage({ type: "success", text: `Application submitted${loc}.` });
+      // Refresh jobs to show updated application status
+      const jobsRes = await fetch("/api/feed", { credentials: "include" });
+      if (jobsRes.ok) {
+        let jobsData = await jobsRes.json();
+        // Re-apply location filter if needed
+        if (user.role === "worker" && user.location) {
+          const userCity = user.location.split(",")[0]?.trim().toLowerCase();
+          jobsData = jobsData.filter((job: Job) => 
+            job.location?.toLowerCase().includes(userCity)
+          );
+        }
+        setJobs(jobsData);
+      }
     } catch (err) {
       console.error("Error applying to job:", err);
       setMessage({
         type: "error",
         text: (err as any)?.message || "Failed to apply to job.",
       });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Inline edit state
+  const [editingJobId, setEditingJobId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Job>>({});
+
+  const startEdit = (job: Job) => {
+    setEditingJobId(job.id);
+    setEditForm({
+      title: job.title,
+      description: job.description,
+      category: job.category,
+      location: job.location,
+      min_budget: job.min_budget,
+      max_budget: job.max_budget,
+      images: job.images || [],
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingJobId(null);
+    setEditForm({});
+    router.replace("/jobs");
+  };
+
+  const saveEdit = async (jobId: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/jobs/${jobId}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm),
+      });
+      if (!res.ok) throw new Error('Failed to update job');
+
+      setMessage({ type: 'success', text: 'Job updated.' });
+      // Refresh jobs
+      const listUrl = user && user.role !== 'worker' ? '/api/user-jobs' : '/api/feed';
+      const listRes = await fetch(listUrl, { credentials: 'include' });
+      if (listRes.ok) {
+        let jobsData = await listRes.json();
+        if (user?.role === 'worker' && user?.location) {
+          const userCity = user.location.split(',')[0]?.trim().toLowerCase();
+          jobsData = jobsData.filter((job: Job) => job.location?.toLowerCase().includes(userCity));
+        }
+        setJobs(jobsData);
+      }
+      cancelEdit();
+    } catch (err) {
+      console.error('Edit job error:', err);
+      setMessage({ type: 'error', text: (err as any)?.message || 'Failed to update job.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteJob = async (jobId: string) => {
+    if (!confirm('Delete this job? This cannot be undone.')) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/jobs/${jobId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to delete job');
+
+      setMessage({ type: 'success', text: 'Job deleted.' });
+      setJobs(jobs.filter((j) => j.id !== jobId));
+    } catch (err) {
+      console.error('Delete job error:', err);
+      setMessage({ type: 'error', text: (err as any)?.message || 'Failed to delete job.' });
     } finally {
       setLoading(false);
     }
@@ -171,27 +279,31 @@ export default function JobsPage() {
   ) => {
     setLoading(true);
     try {
-      // Mock approval functionality
-      setJobs(
-        jobs.map((job) =>
-          job.id === jobId
-            ? {
-                ...job,
-                status: "assigned" as const,
-                worker_id: workerId,
-                applications: job.applications.map((app) =>
-                  app.id === applicationId
-                    ? { ...app, status: "approved" as const }
-                    : { ...app, status: "denied" as const }
-                ),
-              }
-            : job
-        )
+      const res = await fetch(
+        `/api/jobs/${jobId}/applications/${applicationId}/approve`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ applicationId }),
+        }
       );
-      setMessage({
-        type: "success",
-        text: "Worker approved and job assigned!",
-      });
+      if (!res.ok) throw new Error("Approval failed");
+
+      setMessage({ type: "success", text: "Worker approved successfully." });
+
+      // Refresh jobs
+      const jobsRes = await fetch("/api/feed", { credentials: "include" });
+      if (jobsRes.ok) {
+        let jobsData = await jobsRes.json();
+        if (user?.role === "worker" && user.location) {
+          const userCity = user.location.split(",")[0]?.trim().toLowerCase();
+          jobsData = jobsData.filter((job: Job) =>
+            job.location?.toLowerCase().includes(userCity)
+          );
+        }
+        setJobs(jobsData);
+      }
     } catch (err) {
       console.error("Error approving worker:", err);
       setMessage({
@@ -204,20 +316,39 @@ export default function JobsPage() {
   };
 
   const handleDeny = async (applicationId: string) => {
+    // Identify the job containing this application
+    const parentJob = jobs.find((j) =>
+      (j.applications ?? []).some((a) => a.id === applicationId)
+    );
+    if (!parentJob) return;
+
     setLoading(true);
     try {
-      // Mock deny functionality
-      setJobs(
-        jobs.map((job) => ({
-          ...job,
-          applications: job.applications.map((app) =>
-            app.id === applicationId
-              ? { ...app, status: "denied" as const }
-              : app
-          ),
-        }))
+      const res = await fetch(
+        `/api/jobs/${parentJob.id}/applications/${applicationId}/deny`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ applicationId }),
+        }
       );
+      if (!res.ok) throw new Error("Deny failed");
+
       setMessage({ type: "success", text: "Application denied." });
+
+      // Refresh jobs
+      const jobsRes = await fetch("/api/feed", { credentials: "include" });
+      if (jobsRes.ok) {
+        let jobsData = await jobsRes.json();
+        if (user?.role === "worker" && user.location) {
+          const userCity = user.location.split(",")[0]?.trim().toLowerCase();
+          jobsData = jobsData.filter((job: Job) =>
+            job.location?.toLowerCase().includes(userCity)
+          );
+        }
+        setJobs(jobsData);
+      }
     } catch (err) {
       console.error("Error denying application:", err);
       setMessage({
@@ -506,6 +637,20 @@ export default function JobsPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  {/* Poster (owner) */}
+                  {job.owner && (
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={job.owner.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(job.owner.full_name || 'User')}`}
+                        alt={job.owner.full_name || 'User'}
+                        className="w-6 h-6 rounded-full"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(job.owner?.full_name || 'User')}`;
+                        }}
+                      />
+                      <span className="font-medium">{job.owner.full_name}</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-1">
                     <MapPin className="w-4 h-4" />
                     {job.location}
@@ -524,12 +669,105 @@ export default function JobsPage() {
                   )}
                 </div>
 
+                {/* Owner edit controls */}
+                {!isWorker && (
+                  <div className="flex justify-end gap-2 mb-4">
+                    {editingJobId === job.id ? (
+                      <>
+                        <button
+                          onClick={() => saveEdit(job.id)}
+                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-lg text-sm font-medium"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => startEdit(job)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => deleteJob(job.id)}
+                          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Edit form */}
+                {!isWorker && editingJobId === job.id && (
+                  <div className="mb-4 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor={`title-${job.id}`} className="block text-xs mb-1">Title</label>
+                        <input
+                          id={`title-${job.id}`}
+                          value={editForm.title ?? ''}
+                          onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                          className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor={`location-${job.id}`} className="block text-xs mb-1">Location</label>
+                        <input
+                          id={`location-${job.id}`}
+                          value={editForm.location ?? ''}
+                          onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                          className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label htmlFor={`description-${job.id}`} className="block text-xs mb-1">Description</label>
+                        <textarea
+                          id={`description-${job.id}`}
+                          value={editForm.description ?? ''}
+                          onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                          className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor={`min-${job.id}`} className="block text-xs mb-1">Min Budget (ZAR)</label>
+                        <input
+                          type="number"
+                          id={`min-${job.id}`}
+                          value={editForm.min_budget ?? ''}
+                          onChange={(e) => setEditForm({ ...editForm, min_budget: e.target.value === '' ? undefined : Number(e.target.value) })}
+                          className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor={`max-${job.id}`} className="block text-xs mb-1">Max Budget (ZAR)</label>
+                        <input
+                          type="number"
+                          id={`max-${job.id}`}
+                          value={editForm.max_budget ?? ''}
+                          onChange={(e) => setEditForm({ ...editForm, max_budget: e.target.value === '' ? undefined : Number(e.target.value) })}
+                          className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Actions */}
                 {isWorker ? (
                   <div className="flex justify-end gap-2">
                     {job.conversations && job.conversations.length > 0 && (
                       <button
-                        onClick={() => handleMessage(job.customer_id, job.id)}
+                        onClick={() => handleMessage(job.owner_id, job.id)}
                         className="p-2 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
                       >
                         <MessageCircle className="w-4 h-4 text-gray-600 dark:text-gray-400" />
@@ -554,7 +792,7 @@ export default function JobsPage() {
                         Applied (Pending)
                       </span>
                     )}
-                    {job.applications.some(
+                    {job.applications?.some(
                       (app) =>
                         app.worker_id === user.id && app.status === "approved"
                     ) && (

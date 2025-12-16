@@ -59,26 +59,48 @@ export function CompanyDashboard({ user }: { user: UserProfile }) {
     const fetchCompanyStats = async () => {
       setLoadingStats(true);
       try {
-        // Mock data
+        const res = await fetch('/api/user/stats', { credentials: 'include' });
+        if (!res.ok) throw new Error('Failed to fetch stats');
+        
+        const data = await res.json();
+        
         setStats([
           {
             label: "Team Members",
-            value: user.team_size?.toString() || "24",
+            value: data.teamSize?.toString() || "0",
             icon: Users,
           },
           {
             label: "Active Projects",
-            value: user.active_projects?.toString() || "8",
+            value: data.activeProjects?.toString() || "0",
             icon: Briefcase,
           },
           {
             label: "Leads Used",
-            value: `${user.job_leads_used || 145}/${user.leads_limit || 500}`,
+            value: `${user.job_leads_used || 0}/${user.leads_limit || 100}`,
             icon: BarChart3,
           },
         ]);
       } catch (error) {
         console.error("Error loading company stats:", error);
+        // Fallback to zeros
+        setStats([
+          {
+            label: "Team Members",
+            value: "0",
+            icon: Users,
+          },
+          {
+            label: "Active Projects",
+            value: "0",
+            icon: Briefcase,
+          },
+          {
+            label: "Leads Used",
+            value: `0/${user.leads_limit || 100}`,
+            icon: BarChart3,
+          },
+        ]);
       } finally {
         setLoadingStats(false);
       }
@@ -87,7 +109,19 @@ export function CompanyDashboard({ user }: { user: UserProfile }) {
     const fetchRecentProjects = async () => {
       setLoadingProjects(true);
       try {
-        // Mock projects already set in state
+        // Fetch real projects from API
+        const res = await fetch('/api/user-jobs', { credentials: 'include' });
+        if (res.ok) {
+          const jobs = await res.json();
+          const recent = jobs.slice(0, 5).map((j: any) => ({
+            id: j.id,
+            title: j.title,
+            client_name: j.profiles_owner?.full_name || 'Unknown Client',
+            status: j.status,
+            created_at: j.created_at
+          }));
+          setRecentProjects(recent);
+        }
       } catch (error) {
         console.error("Error loading recent projects:", error);
       } finally {
@@ -97,13 +131,7 @@ export function CompanyDashboard({ user }: { user: UserProfile }) {
 
     fetchCompanyStats();
     fetchRecentProjects();
-  }, [
-    user.id,
-    user.leads_limit,
-    user.job_leads_used,
-    user.team_size,
-    user.active_projects,
-  ]);
+  }, [user.id, user.leads_limit, user.job_leads_used]);
 
   return (
     <div className="space-y-8">

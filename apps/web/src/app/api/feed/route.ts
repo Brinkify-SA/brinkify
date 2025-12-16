@@ -21,13 +21,12 @@ export async function GET() {
         min_budget,
         max_budget,
         created_at,
-        open,
-        customer_id,
-        images,
-        customers!customer_id (id, user_id, users!inner (id, email))
+        status,
+        owner_id,
+        worker_id,
+        images
       `)
-      // DB uses 'open' as true for active jobs
-      .eq('open', true)
+      .eq('status', 'open')
       .order('created_at', { ascending: false });
     
     // Handle database error
@@ -38,9 +37,62 @@ export async function GET() {
         { status: 500 }
       );
     }
-    
-    // Format the data for the frontend
-    const formattedJobs = jobs.map(job => ({
+    // If no jobs, return empty list early
+    if (!jobs || jobs.length === 0) {
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+
+    // Fetch owner profiles in one query to avoid N+1 requests
+    const ownerIds = Array.from(new Set(jobs.map(j => j.owner_id).filter(Boolean)));
+    let ownersById: Record<string, any> = {};
+    if (ownerIds.length > 0) {
+      const { data: owners, error: ownersError } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url, location, role')
+        .in('id', ownerIds as string[]);
+      if (ownersError) {
+        console.warn('Warning: failed to fetch owner profiles:', ownersError.message);
+      } else if (owners) {
+        ownersById = owners.reduce((acc: Record<string, any>, o: any) => {
+          acc[o.id] = o;
+          return acc;
+        }, {});
+      }
+    }
+
+    // Get current user to check their likes
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // Get likes counts for all jobs
+    const jobIds = jobs.map(j => j.id);
+    const { data: likesData } = await supabase
+      .from('job_likes')
+      .select('job_id, user_id')
+      .in('job_id', jobIds);
+
+    // Get comments counts for all jobs
+    const { data: commentsData } = await supabase
+      .from('job_comments')
+      .select('job_id')
+      .in('job_id', jobIds);
+
+    // Build counts maps
+    const likesCounts: Record<string, number> = {};
+    const userLikes: Set<string> = new Set();
+    (likesData || []).forEach((like: any) => {
+      likesCounts[like.job_id] = (likesCounts[like.job_id] || 0) + 1;
+      if (user && like.user_id === user.id) {
+        userLikes.add(like.job_id);
+      }
+    });
+
+    const commentsCounts: Record<string, number> = {};
+    (commentsData || []).forEach((comment: any) => {
+      commentsCounts[comment.job_id] = (commentsCounts[comment.job_id] || 0) + 1;
+    });
+
+    // Format the data for the frontend, including poster (owner) details
+    const formattedJobs = (jobs || []).map(job => ({
       id: job.id,
       title: job.title,
       description: job.description,
@@ -50,15 +102,18 @@ export async function GET() {
       max_budget: job.max_budget,
       created_at: job.created_at,
       images: job.images || [],
-      user: {
-        id: job.customers?.[0]?.id || job.customer_id,
-        full_name: job.customers?.[0]?.users?.[0]?.email?.split('@')[0] || 'Anonymous',
-        avatar_url: '/default-avatar.png'
-      }
+      owner_id: job.owner_id,
+      worker_id: job.worker_id,
+      status: job.status || 'open',
+      owner: ownersById[job.owner_id as string] || null,
+      likesCount: likesCounts[job.id] || 0,
+      commentsCount: commentsCounts[job.id] || 0,
+      userLiked: userLikes.has(job.id),
+      // Ensure arrays exist to avoid UI runtime errors
+      applications: [],
+      conversations: []
     }));
-    
-    console.log(`Returning ${formattedJobs.length} jobs to feed`);
-    
+
     return new Response(JSON.stringify(formattedJobs), { status: 200 });
   } catch (error) {
     console.error("Unexpected error in feed API:", error);

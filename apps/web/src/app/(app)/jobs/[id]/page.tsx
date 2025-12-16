@@ -1,316 +1,424 @@
-// app/jobs/[id]/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
-import { 
-  MapPin, 
-  Clock, 
-  DollarSign, 
-  User, 
-  Briefcase, 
-  MessageCircle, 
-  UserCheck, 
-  UserX, 
-  ArrowLeft 
+import {
+  MapPin,
+  Clock,
+  DollarSign,
+  Briefcase,
+  MessageCircle,
+  UserCheck,
+  UserX,
+  ArrowLeft,
+  Star,
+  X,
 } from 'lucide-react';
-
-// 🔒 Mock current user
-const MOCK_CURRENT_USER = {
-  id: 'user_456', // Change to 'user_123' for worker
-  name: 'Sarah K.',
-  role: 'customer', // 'worker' or 'customer'
-  avatar: 'https://ui-avatars.com/api/?name=Sarah+K&background=10B981&color=fff',
-};
-
-// 📋 Mock job data
-const MOCK_JOBS: Record<string, any> = {
-  job_001: {
-    id: 'job_001',
-    title: 'Fix kitchen light',
-    description: 'Light not turning on. Need electrician ASAP.',
-    location: 'Pretoria, Centurion',
-    budgetType: 'fixed',
-    budgetAmount: 450,
-    postedAt: '2025-10-25',
-    status: 'open',
-    customer: {
-      id: 'user_456',
-      name: 'Sarah K.',
-      avatar: 'https://ui-avatars.com/api/?name=Sarah+K&background=10B981&color=fff',
-    },
-    applicants: [
-      {
-        id: 'work_001',
-        name: 'John D.',
-        avatar: 'https://ui-avatars.com/api/?name=John+D&background=4F46E5&color=fff',
-        status: 'pending',
-        conversationId: 'conv_101',
-      },
-      {
-        id: 'work_002',
-        name: 'Lerato P.',
-        avatar: 'https://ui-avatars.com/api/?name=Lerato+P&background=F59E0B&color=fff',
-        status: 'pending',
-        conversationId: 'conv_102',
-      },
-    ],
-  },
-  job_101: {
-    id: 'job_101',
-    title: 'Bathroom tiling',
-    description: 'Replace old tiles in main bathroom.',
-    location: 'Johannesburg, Sandton',
-    budgetType: 'fixed',
-    budgetAmount: 3200,
-    postedAt: '2025-10-22',
-    status: 'assigned',
-    customer: {
-      id: 'user_456',
-      name: 'Sarah K.',
-      avatar: 'https://ui-avatars.com/api/?name=Sarah+K&background=10B981&color=fff',
-    },
-    worker: {
-      id: 'work_001',
-      name: 'John D.',
-      avatar: 'https://ui-avatars.com/api/?name=John+D&background=4F46E5&color=fff',
-      conversationId: 'conv_101',
-    },
-  },
-};
+import { createClient as createBrowserClient } from '@/utils/supabase/client';
 
 export default function JobDetailPage() {
   const router = useRouter();
   const { id } = useParams();
   const jobId = Array.isArray(id) ? id[0] : id;
 
-  const [user, setUser] = useState<typeof MOCK_CURRENT_USER | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [job, setJob] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [existingReview, setExistingReview] = useState<any>(null);
 
+  /* ---------------- LOAD JOB + USER + REVIEW ---------------- */
   useEffect(() => {
-    setUser(MOCK_CURRENT_USER);
-    if (jobId && MOCK_JOBS[jobId]) {
-      setJob(MOCK_JOBS[jobId]);
-    }
-    setLoading(false);
+    const load = async () => {
+      setLoading(true);
+      try {
+        const jobRes = await fetch(`/api/jobs/${jobId}`, {
+          credentials: 'include',
+        });
+        if (!jobRes.ok) throw new Error('Failed to load job');
+        setJob(await jobRes.json());
+
+        const supabase = createBrowserClient();
+        const { data } = await supabase.auth.getUser();
+        setUser(data?.user ?? null);
+
+        // Check if user has already reviewed this job
+        if (data?.user) {
+          const reviewRes = await fetch(`/api/jobs/${jobId}/review`, {
+            credentials: 'include',
+          });
+          if (reviewRes.ok) {
+            const { review } = await reviewRes.json();
+            setExistingReview(review);
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (jobId) load();
   }, [jobId]);
 
-  const isWorker = user?.role === 'worker';
-  const isOwner = job?.customer?.id === user?.id;
-  const isAssignedWorker = job?.worker?.id === user?.id;
+  /* ---------------- DERIVED FLAGS ---------------- */
+  const isOwner = user && job && job.customer_id === user.id;
 
-  const handleBack = () => router.push('/jobs');
-  const handleMessage = (convId: string) => router.push(`/messages/${convId}`);
-  const handleApply = () => {
-    console.log('Applying to job...');
-    // In real app: call API
-    alert('Application submitted!');
-  };
-  const handleApprove = (workerId: string) => {
-    console.log(`Approving worker ${workerId}`);
-    alert('Worker approved!');
-  };
-  const handleDeny = (workerId: string) => {
-    console.log(`Denying worker ${workerId}`);
-    alert('Worker denied.');
+  /* ---------------- ACTIONS ---------------- */
+  const handleApprove = async (applicationId: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `/api/jobs/${jobId}/applications/${applicationId}/approve`,
+        { method: 'POST', credentials: 'include' }
+      );
+      if (!res.ok) throw new Error('Approve failed');
+      setJob(await (await fetch(`/api/jobs/${jobId}`)).json());
+      alert('Worker approved');
+    } catch (e) {
+      alert('Failed to approve worker');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (loading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <p className="text-gray-600 dark:text-gray-300">Loading job details...</p>
-      </div>
-    );
+  const handleDeny = async (applicationId: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `/api/jobs/${jobId}/applications/${applicationId}/deny`,
+        { method: 'POST', credentials: 'include' }
+      );
+      if (!res.ok) throw new Error('Deny failed');
+      setJob(await (await fetch(`/api/jobs/${jobId}`)).json());
+      alert('Application denied');
+    } catch (e) {
+      alert('Failed to deny application');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMessage = async () => {
+    if (!user) {
+      alert('Please log in to send a message');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // Determine recipient: if owner, message the approved worker; if worker, message the owner
+      const recipientId = isOwner ? job.worker_id : job.owner_id;
+      
+      if (!recipientId) {
+        alert(isOwner ? 'No worker assigned yet' : 'Job owner not available');
+        return;
+      }
+
+      // Create or find existing chat
+      const res = await fetch('/api/chats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ user_id: recipientId }),
+      });
+
+      if (!res.ok) throw new Error('Failed to create conversation');
+      const { data } = await res.json();
+      
+      // Navigate to the chat
+      router.push(`/messages/${data.id}`);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to start conversation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMessageApplicant = async (applicantUserId: string) => {
+    if (!user) {
+      alert('Please log in to send a message');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // Create or find existing chat with this applicant
+      const res = await fetch('/api/chats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ user_id: applicantUserId }),
+      });
+
+      if (!res.ok) throw new Error('Failed to create conversation');
+      const { data } = await res.json();
+      
+      // Navigate to the chat
+      router.push(`/messages/${data.id}`);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to start conversation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmitRating = async () => {
+    if (rating === 0) {
+      alert('Please select a rating');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ rating, comment }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to submit rating');
+      }
+
+      const { review } = await res.json();
+      setExistingReview(review);
+      setShowRatingModal(false);
+      setRating(0);
+      setComment('');
+      alert('Rating submitted successfully!');
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || 'Failed to submit rating');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ---------------- STATES ---------------- */
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading…</div>;
   }
 
   if (!job) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <p className="text-gray-600 dark:text-gray-300">Job not found.</p>
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center">Job not found</div>;
   }
 
+  /* ---------------- UI ---------------- */
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors">
-      {/* Navbar */}
-      <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3 flex items-center gap-4">
-          <button onClick={handleBack} className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="hidden sm:inline">Jobs</span>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <header className="bg-white dark:bg-gray-900 shadow sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-3 flex items-center gap-3">
+          <button onClick={() => router.back()} className="text-blue-600 flex items-center gap-1">
+            <ArrowLeft className="w-4 h-4" /> Back
           </button>
-          <h1 className="text-lg font-bold text-gray-800 dark:text-white truncate">{job.title}</h1>
+          <h1 className="font-bold truncate">{job.title}</h1>
           <div className="ml-auto hidden md:block">
             <ModeToggle />
           </div>
         </div>
       </header>
 
-      <main className="flex-grow container mx-auto px-4 py-6">
-        {/* Job Header */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
-          <div className="flex justify-between items-start mb-3">
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">{job.title}</h1>
-            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-              job.status === 'open' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
-              job.status === 'assigned' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-              job.status === 'in-progress' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
-              'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-            }`}>
-              {job.status.replace('-', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
-            </span>
+      <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* JOB INFO */}
+        <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border">
+          <p className="text-gray-600 dark:text-gray-300">{job.description}</p>
+
+          <div className="grid sm:grid-cols-2 gap-3 mt-4 text-sm">
+            <div className="flex gap-2"><MapPin className="w-4 h-4" /> {job.location}</div>
+            <div className="flex gap-2"><Clock className="w-4 h-4" /> {new Date(job.created_at).toDateString()}</div>
+            <div className="flex gap-2"><DollarSign className="w-4 h-4" /> R {job.min_budget ?? 'TBD'}</div>
+            <div className="flex gap-2"><Briefcase className="w-4 h-4" /> Job status: {job.status}</div>
           </div>
 
-          <p className="text-gray-600 dark:text-gray-300 mb-4">{job.description}</p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-              <span>{job.location}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-              <span>Posted {job.postedAt}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-              <span>
-                {job.budgetType === 'hourly' ? 'R' + job.budgetAmount + '/hr' : 'R ' + job.budgetAmount}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              {isWorker ? (
-                <>
-                  <User className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                  <span>Posted by: {job.customer.name}</span>
-                </>
-              ) : (
-                <>
-                  <Briefcase className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                  <span>Category: Electricians</span>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-3 pt-4">
-            {isWorker && job.status === 'open' && (
+          {/* ACTION BUTTONS */}
+          <div className="mt-4 flex flex-wrap gap-3">
+            {user && ((isOwner && job.worker_id) || (!isOwner && job.owner_id)) && (
               <button
-                onClick={handleApply}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium"
+                onClick={handleMessage}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center gap-2 transition"
               >
-                Apply
+                <MessageCircle className="w-4 h-4" />
+                {isOwner ? 'Message Worker' : 'Message Owner'}
               </button>
             )}
 
-            {isOwner && job.status === 'open' && job.applicants?.length > 0 && (
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                Review {job.applicants.length} applicants
-              </span>
+            {/* RATE WORKER BUTTON - Only for owner on completed jobs */}
+            {user && isOwner && job.status === 'completed' && job.worker_id && !existingReview && (
+              <button
+                onClick={() => setShowRatingModal(true)}
+                className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center gap-2 transition"
+              >
+                <Star className="w-4 h-4" />
+                Rate Worker
+              </button>
             )}
 
-            {isAssignedWorker && (
-              <button
-                onClick={() => job.worker && handleMessage(job.worker.conversationId)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2"
-              >
-                <MessageCircle className="w-4 h-4" /> Message Customer
-              </button>
+            {/* SHOW EXISTING REVIEW */}
+            {existingReview && (
+              <div className="w-full p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <p className="text-sm text-green-800 dark:text-green-200 font-medium flex items-center gap-2">
+                  <Star className="w-4 h-4 fill-green-600" />
+                  You rated this job: {existingReview.rating} stars
+                </p>
+                {existingReview.comment && (
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">"{existingReview.comment}"</p>
+                )}
+              </div>
             )}
           </div>
         </div>
 
-        {/* Applicants Section (for Homeowners) */}
-        {isOwner && job.status === 'open' && job.applicants && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
-              Applicants ({job.applicants.length})
+        {/* APPLICATIONS */}
+        {isOwner && job.status === 'open' && job.applications?.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border">
+            <h2 className="font-bold mb-4">
+              Applicants ({job.applications.length})
             </h2>
-            <div className="space-y-4">
-              {job.applicants.map((applicant: any) => (
-                <div key={applicant.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={applicant.avatar}
-                      alt={applicant.name}
-                      className="w-10 h-10 rounded-full"
-                    />
-                    <span className="font-medium">{applicant.name}</span>
+
+            <div className="space-y-3">
+              {job.applications.map((app: any) => (
+                <div key={app.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div>
+                    <p className="font-medium">
+                      {app.profiles?.full_name ?? app.worker_id}
+                    </p>
+                    <p className="text-xs text-gray-500">Status: {app.status}</p>
                   </div>
+
                   <div className="flex gap-2">
-                    <button
-                      type="button"
-                      title="Message"
-                      onClick={() => handleMessage(applicant.conversationId)}
-                      className="p-2 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
-                    >
-                      <MessageCircle className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                    </button>
-                    {applicant.status === 'pending' && (
+                    {app.status === 'pending' && (
                       <>
-                        <button
-                          onClick={() => handleApprove(applicant.id)}
-                          className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-full"
-                          title="Approve"
+                        <button 
+                          onClick={() => handleApprove(app.id)} 
+                          className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition"
+                          title="Approve application"
                         >
                           <UserCheck className="w-5 h-5" />
                         </button>
-                        <button
-                          onClick={() => handleDeny(applicant.id)}
-                          className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full"
-                          title="Deny"
+                        <button 
+                          onClick={() => handleDeny(app.id)} 
+                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"
+                          title="Deny application"
                         >
                           <UserX className="w-5 h-5" />
                         </button>
                       </>
                     )}
+                    <button
+                      onClick={() => handleMessageApplicant(app.user_id)}
+                      className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition"
+                      title="Message applicant"
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
           </div>
         )}
+      </main>
 
-        {/* Assigned Worker (for Homeowners) */}
-        {isOwner && job.worker && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Assigned Worker</h2>
-            <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <div className="flex items-center gap-3">
-                <img
-                  src={job.worker.avatar}
-                  alt={job.worker.name}
-                  className="w-12 h-12 rounded-full"
-                />
-                <div>
-                  <p className="font-bold text-gray-800 dark:text-white">{job.worker.name}</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Status: {job.status}</p>
-                </div>
-              </div>
+      {/* RATING MODAL */}
+      {showRatingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold">Rate Worker</h3>
               <button
-                onClick={() => handleMessage(job.worker.conversationId)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-1"
+                onClick={() => {
+                  setShowRatingModal(false);
+                  setRating(0);
+                  setComment('');
+                }}
+                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
               >
-                <MessageCircle className="w-4 h-4" /> Message
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* STAR RATING */}
+            <div className="mb-6">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                How would you rate the worker's performance?
+              </p>
+              <div className="flex gap-2 justify-center">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onClick={() => setRating(star)}
+                    onMouseEnter={() => setHoverRating(star)}
+                    onMouseLeave={() => setHoverRating(0)}
+                    className="transition-transform hover:scale-110"
+                  >
+                    <Star
+                      className={`w-10 h-10 ${
+                        star <= (hoverRating || rating)
+                          ? 'fill-yellow-400 text-yellow-400'
+                          : 'text-gray-300 dark:text-gray-600'
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+              {rating > 0 && (
+                <p className="text-center mt-2 text-sm font-medium">
+                  {rating === 1 && 'Poor'}
+                  {rating === 2 && 'Fair'}
+                  {rating === 3 && 'Good'}
+                  {rating === 4 && 'Very Good'}
+                  {rating === 5 && 'Excellent'}
+                </p>
+              )}
+            </div>
+
+            {/* COMMENT */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2">
+                Comment (Optional)
+              </label>
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Share your experience with this worker..."
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* SUBMIT BUTTON */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowRatingModal(false);
+                  setRating(0);
+                  setComment('');
+                }}
+                className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitRating}
+                disabled={rating === 0 || loading}
+                className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition"
+              >
+                {loading ? 'Submitting...' : 'Submit Rating'}
               </button>
             </div>
           </div>
-        )}
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-white dark:bg-gray-950 border-t dark:border-gray-800 py-6 text-center">
-        <div className="container mx-auto px-4">
-          <span className="text-lg font-bold text-blue-600 dark:text-blue-400">Brinkify SA</span>
-          <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm">
-            © {new Date().getFullYear()} Connecting skilled workers with homeowners across South Africa.
-          </p>
         </div>
-      </footer>
+      )}
     </div>
   );
 }

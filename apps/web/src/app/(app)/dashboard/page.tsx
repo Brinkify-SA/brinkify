@@ -225,19 +225,19 @@ export default function DashboardPage() {
               </h1>
               <p className="opacity-90 mt-1">
                 {user.role === "worker"
-                  ? `Available in ${user.addresses[0].city} • Manage your jobs and grow your reputation.`
+                  ? `Available in ${user.addresses?.[0]?.city || user.location || 'your area'} • Manage your jobs and grow your reputation.`
                   : user.role === "customer"
-                  ? `Based in ${user.addresses[0].city} • Find trusted professionals for your home.`
+                  ? `Based in ${user.addresses?.[0]?.city || user.location || 'your area'} • Find trusted professionals for your home.`
                   : `Managing ${user.team_size || 0} workers • ${
                       user.active_projects || 0
-                    } active projects in ${user.addresses[0].city}.`}
+                    } active projects in ${user.addresses?.[0]?.city || user.location || 'your area'}.`}
               </p>
               {/* Plan Usage */}
-              {user.role !== "customer" && (
+              {user.role !== "customer" && user.plan && (
                 <div className="mt-2 bg-blue-100/30 border border-blue-300 text-blue-800 p-2 rounded-md text-sm">
                   <p>
                     <span className="font-bold">
-                      {user.plan.name.replace("_", " ").toUpperCase()} Plan
+                      {user.plan.name?.replace("_", " ").toUpperCase() || 'FREE'} Plan
                     </span>{" "}
                     •{" "}
                     {user.role === "worker"

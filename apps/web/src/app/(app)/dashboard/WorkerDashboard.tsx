@@ -15,29 +15,43 @@ export function WorkerDashboard({ user }: { user: UserProfile }) {
     const fetchWorkerStats = async () => {
       setLoadingStats(true);
       try {
-        // Mock data for worker
+        const res = await fetch('/api/user/stats', { credentials: 'include' });
+        if (!res.ok) throw new Error('Failed to fetch stats');
+        
+        const data = await res.json();
+        
         setStats([
-          { label: "Active Jobs", value: "3", change: "+2 this week" },
+          { 
+            label: "Active Jobs", 
+            value: data.activeJobs?.toString() || "0", 
+            change: "" 
+          },
           {
             label: "Total Earnings",
-            value: `ZAR ${user.total_earnings?.toLocaleString() || "42,500"}`,
+            value: `R ${data.totalEarnings?.toLocaleString() || "0"}`,
             change: "",
           },
           {
             label: "Avg. Rating",
-            value: user.average_rating?.toFixed(1) || "4.8",
-            change: "⭐",
+            value: data.avgRating || "0.0",
+            change: data.avgRating > 0 ? "⭐" : "",
           },
         ]);
       } catch (error) {
         console.error("Error loading worker stats:", error);
+        // Fallback to zeros
+        setStats([
+          { label: "Active Jobs", value: "0", change: "" },
+          { label: "Total Earnings", value: "R 0", change: "" },
+          { label: "Avg. Rating", value: "0.0", change: "" },
+        ]);
       } finally {
         setLoadingStats(false);
       }
     };
 
     fetchWorkerStats();
-  }, [user.total_earnings, user.average_rating]);
+  }, []);
 
   return (
     <div className="space-y-8">
