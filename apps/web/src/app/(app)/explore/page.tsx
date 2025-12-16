@@ -366,8 +366,20 @@ export default function ExplorePage() {
 
           {!loading && filteredPosts.map((post) => {
             const images: string[] = Array.isArray(post.images) ? post.images : [];
-            const workerObj = post.worker ?? { id: post.workerId ?? 'unknown', name: post.workerName ?? 'Worker', avatar: post.worker?.avatar ?? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(post.workerName ?? 'W')}`, rating: post.worker?.rating ?? 0 };
-            const canManage = post.isLocal && post.createdByEmail && post.createdByEmail === localStorage.getItem('userEmail');
+            // Build a worker display object from API shape; fallback if missing
+            const workerData: any = post.worker ?? {};
+            const workerName: string = typeof workerData.full_name === 'string' && workerData.full_name.length > 0
+              ? workerData.full_name
+              : 'Worker';
+            const workerAvatar: string = typeof workerData.avatar_url === 'string' && workerData.avatar_url.length > 0
+              ? workerData.avatar_url
+              : `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(workerName)}`;
+            const workerObj: { id: string; name: string; avatar: string; rating: number } = {
+              id: post.worker_id ?? 'unknown',
+              name: workerName,
+              avatar: workerAvatar,
+              rating: 0,
+            };
 
             return (
               <div
@@ -397,26 +409,6 @@ export default function ExplorePage() {
                 <span className="ml-auto px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs rounded-full">
                   {post.category}
                 </span>
-                {canManage && (
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const raw = localStorage.getItem('feedPosts');
-                      let feed = [] as any[];
-                      if (raw) {
-                        try { feed = JSON.parse(raw); } catch { feed = []; }
-                      }
-                      const remaining = feed.filter(p => p.id !== post.id);
-                      localStorage.setItem('feedPosts', JSON.stringify(remaining));
-                      setCompletedJobs(remaining);
-                    }}
-                    title="Delete post"
-                    className="ml-3 text-gray-400 hover:text-red-500 transition"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                )}
               </div>
 
               {/* Post Content */}
@@ -441,13 +433,13 @@ export default function ExplorePage() {
                 <div className="flex justify-between text-gray-500 dark:text-gray-400 text-sm">
                   <div className="flex items-center gap-1">
                     <Heart className="w-4 h-4 fill-red-500 text-red-500" />
-                    <span>{post.likes}</span>
+                    <span>{post.likesCount ?? 0}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <MessageCircle className="w-4 h-4" />
-                    <span>{post.comments}</span>
+                    <span>{post.commentsCount ?? 0}</span>
                   </div>
-                  <span>{post.createdAt}</span>
+                  <span>{new Date(post.created_at).toLocaleDateString()}</span>
                 </div>
               </div>
             </div>
