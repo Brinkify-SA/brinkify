@@ -14,12 +14,7 @@ import {
 } from 'lucide-react';
 import Loader from '@/components/loader';
 
-interface UserProfile {
-  id: string;
-  full_name: string;
-  role: 'worker' | 'customer' | 'company';
-}
-
+// 🔁 Updated to match your Supabase API response
 interface Job {
   id: string;
   title: string;
@@ -29,16 +24,21 @@ interface Job {
   max_budget?: number;
   created_at: string;
   status: 'open' | 'assigned' | 'in-progress' | 'completed' | 'cancelled';
-  customer_id: string;
-  worker_id?: string;
-  profiles_customer?: { full_name: string }[];
-  profiles_worker?: { full_name: string }[];
-  reviews?: { rating: number }[];
+  owner_id: string;     // ✅ from Supabase (not customer_id)
+  worker_id?: string;   // ✅ nullable
+  // Relations from PostgREST (!fk syntax)
+  profiles_customer?: { id: string; email: string }[];
+  profiles_worker?: { id: string; email: string }[];
+}
+
+// ✅ Remove role for now (infer from job ownership)
+interface UserProfile {
+  id: string;
+  email: string;
 }
 
 export default function MyJobsPage() {
   const router = useRouter();
-  const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [currentJobs, setCurrentJobs] = useState<Job[]>([]);
   const [jobHistory, setJobHistory] = useState<Job[]>([]);
@@ -46,24 +46,29 @@ export default function MyJobsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchJobs = async () => {
+    const fetchUserData = async () => {
       try {
-        const res = await fetch('/api/user-jobs', { credentials: 'include' });
-
-        if (res.status === 401) {
+        // ✅ Fetch real user
+        const userRes = await fetch('/api/user/profile', {
+          credentials: 'include',
+        });
+        if (userRes.status === 401) {
           router.push('/auth/login');
           return;
         }
+        if (!userRes.ok) throw new Error('Failed to fetch user');
+        const userData: UserProfile = await userRes.json();
+        setUser(userData);
 
-        if (!res.ok) throw new Error('Failed to load jobs');
+        // ✅ Fetch jobs
+        const jobsRes = await fetch('/api/user-jobs', {
+          credentials: 'include',
+        });
+        if (!jobsRes.ok) throw new Error('Failed to load jobs');
+        const jobs: Job[] = await jobsRes.json();
 
-        const jobs: Job[] = await res.json();
-
-        setCurrentJobs(jobs.filter(j => j.status !== 'completed'));
-        setJobHistory(jobs.filter(j => j.status === 'completed'));
-
-        // TEMP user until auth profile endpoint is wired
-        setUser({ id: 'me', full_name: 'User', role: 'customer' });
+        setCurrentJobs(jobs.filter((j) => j.status !== 'completed'));
+        setJobHistory(jobs.filter((j) => j.status === 'completed'));
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -71,20 +76,35 @@ export default function MyJobsPage() {
       }
     };
 
-    fetchJobs();
+    fetchUserData();
   }, [router]);
 
+  // ✅ Real API call to mark job as completed
   const markFinished = async (jobId: string) => {
-    // Optional: hook this to an API later
-    setCurrentJobs(prev => prev.filter(j => j.id !== jobId));
-    const finished = currentJobs.find(j => j.id === jobId);
-    if (finished) {
-      setJobHistory(prev => [{ ...finished, status: 'completed' }, ...prev]);
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/complete`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!res.ok) throw new Error('Failed to complete job');
+
+      // Optimistic update
+      setCurrentJobs((prev) => prev.filter((j) => j.id !== jobId));
+      const finished = currentJobs.find((j) => j.id === jobId);
+      if (finished) {
+        setJobHistory((prev) => [
+          { ...finished, status: 'completed' },
+          ...prev,
+        ]);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Could not finish job');
     }
   };
 
   if (loading) return <Loader />;
-
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -92,10 +112,15 @@ export default function MyJobsPage() {
       </div>
     );
   }
-
   if (!user) return null;
 
-  const isWorker = user.role === 'worker';
+  // ✅ Infer role per job: 
+  // - If job.owner_id === user.id → you're the customer
+  // - If job.worker_id === user.id → you're the worker
+  // But for page heading, we can check: do you own ANY job?
+  const ownsAnyJob = currentJobs.some((j) => j.owner_id === user.id) || 
+                     jobHistory.some((j) => j.owner_id === user.id);
+  const isWorkerView = !ownsAnyJob; // Simplified heuristic
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
@@ -116,20 +141,19 @@ export default function MyJobsPage() {
       {/* Content */}
       <main className="container mx-auto px-4 py-8 flex-grow">
         <h1 className="text-3xl font-bold mb-6 text-gray-800 dark:text-white">
-          {isWorker ? 'My Jobs' : 'My Posted Jobs'}
+          {isWorkerView ? 'My Jobs' : 'My Posted Jobs'}
         </h1>
 
         {/* Current Jobs */}
         <section className="mb-10">
           <h2 className="text-xl font-semibold mb-4 text-white">Ongoing Jobs</h2>
-
           {currentJobs.length ? (
-            currentJobs.map(job => (
+            currentJobs.map((job) => (
               <JobCard
                 key={job.id}
                 job={job}
+                user={user}
                 type="current"
-                isWorker={isWorker}
                 onViewDetails={() => router.push(`/jobs/${job.id}`)}
                 onMarkFinished={() => markFinished(job.id)}
               />
@@ -142,14 +166,13 @@ export default function MyJobsPage() {
         {/* History */}
         <section>
           <h2 className="text-xl font-semibold mb-4 text-white">Job History</h2>
-
           {jobHistory.length ? (
-            jobHistory.map(job => (
+            jobHistory.map((job) => (
               <JobCard
                 key={job.id}
                 job={job}
+                user={user}
                 type="history"
-                isWorker={isWorker}
                 onViewDetails={() => router.push(`/jobs/${job.id}`)}
               />
             ))
@@ -164,7 +187,7 @@ export default function MyJobsPage() {
 
 /* ---------------- Components ---------------- */
 
-function EmptyCard({ icon: Icon, text }: any) {
+function EmptyCard({ icon: Icon, text }: { icon: any; text: string }) {
   return (
     <div className="bg-white dark:bg-gray-800 p-6 rounded-xl text-center border">
       <Icon className="mx-auto w-10 h-10 text-gray-400 mb-3" />
@@ -175,20 +198,25 @@ function EmptyCard({ icon: Icon, text }: any) {
 
 function JobCard({
   job,
+  user,
   type,
-  isWorker,
   onViewDetails,
   onMarkFinished,
 }: {
   job: Job;
+  user: UserProfile;
   type: 'current' | 'history';
-  isWorker: boolean;
   onViewDetails: () => void;
   onMarkFinished?: () => void;
 }) {
-  const otherParty = isWorker
-    ? job.profiles_customer?.[0]?.full_name
-    : job.profiles_worker?.[0]?.full_name;
+  // ✅ Determine if current user is customer or worker for THIS job
+  const isCustomer = job.owner_id === user.id;
+  const isWorker = job.worker_id === user.id;
+
+  // ✅ Get other party's display name (use email since no full_name)
+  const otherParty = isCustomer
+    ? job.profiles_worker?.[0]?.email?.split('@')[0] || 'Worker'
+    : job.profiles_customer?.[0]?.email?.split('@')[0] || 'Customer';
 
   return (
     <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border mb-4">
@@ -203,15 +231,13 @@ function JobCard({
       </div>
 
       <div className="text-sm text-gray-500 mt-2">
-        {otherParty && (
-          <div className="flex items-center gap-2">
-            <User className="w-4 h-4" />
-            {otherParty}
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <User className="w-4 h-4" />
+          {otherParty}
+        </div>
         <div className="flex items-center gap-2">
           <MapPin className="w-4 h-4" />
-          {job.location}
+          {job.location || 'Not specified'}
         </div>
       </div>
 
@@ -219,10 +245,15 @@ function JobCard({
         <span className="font-semibold">
           {job.min_budget && job.max_budget
             ? `ZAR ${job.min_budget} - ${job.max_budget}`
+            : job.min_budget
+            ? `From ZAR ${job.min_budget}`
+            : job.max_budget
+            ? `Up to ZAR ${job.max_budget}`
             : '—'}
         </span>
 
         <div className="flex gap-3">
+          {/* ✅ Only workers can mark as finished */}
           {type === 'current' && isWorker && onMarkFinished && (
             <button
               onClick={onMarkFinished}

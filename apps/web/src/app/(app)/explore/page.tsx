@@ -5,94 +5,40 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/mode-toggle';
+import { createClient as createSupabaseBrowserClient } from "@/utils/supabase/client";
 import { 
   Heart, MessageCircle, MapPin, User, Search, Filter, Share2, 
   Star, Award, TrendingUp, Bookmark, Eye, Download, ChevronLeft, 
-  ChevronRight, Zap, Clock, DollarSign, CheckCircle, X
+  ChevronRight, Zap, Clock, DollarSign, CheckCircle, X, Banknote, Menu
 } from 'lucide-react';
 
-// 🔒 Mock feed posts (like Instagram for trades)
-const MOCK_FEED_POSTS = [
-  {
-    id: 'post_1',
-    worker: { id: '4', name: 'Thabo N.', avatar: 'https://ui-avatars.com/api/?name=Thabo+N&background=4F46E5&color=fff', rating: 4.9 },
-    title: 'Kitchen Rewiring Complete',
-    category: 'Electricians',
-    location: 'Johannesburg, Sandton',
-    description: 'Upgraded old wiring, added 3 new outlets, and installed LED lighting. All compliant with SANS 10142.',
-    images: [
-      'https://images.pexels.com/photos/2724749/pexels-photo-2724749.jpeg?auto=compress&cs=tinysrgb&w=600',
-      'https://images.pexels.com/photos/5632399/pexels-photo-5632399.jpeg?auto=compress&cs=tinysrgb&w=600',
-    ],
-    likes: 24,
-    comments: 3,
-    views: 156,
-    saves: 8,
-    createdAt: '2025-10-20',
-    completionTime: '3 days',
-    price: 'ZAR 2,500',
-    verified: true,
-  },
-  {
-    id: 'post_2',
-    worker: { id: '2', name: 'Sarah Worker', avatar: 'https://ui-avatars.com/api/?name=Sarah+Worker&background=F59E0B&color=fff', rating: 4.8 },
-    title: 'Garden Makeover',
-    category: 'Gardeners',
-    location: 'Cape Town, Southern Suburbs',
-    description: 'Complete lawn restoration, hedge trimming, and new flower beds installed. Client loved the result!',
-    images: [
-      'https://images.pexels.com/photos/1105726/pexels-photo-1105726.jpeg?auto=compress&cs=tinysrgb&w=600',
-      'https://images.pexels.com/photos/3225517/pexels-photo-3225517.jpeg?auto=compress&cs=tinysrgb&w=600',
-    ],
-    likes: 42,
-    comments: 7,
-    views: 289,
-    saves: 15,
-    createdAt: '2025-10-22',
-    completionTime: '2 days',
-    price: 'ZAR 1,800',
-    verified: true,
-  },
-  {
-    id: 'post_3',
-    worker: { id: '3', name: 'Mike Electrician', avatar: 'https://ui-avatars.com/api/?name=Mike+Electrician&background=8B5CF6&color=fff', rating: 4.6 },
-    title: 'Bedroom Painting',
-    category: 'Painters',
-    location: 'Johannesburg, Sandton',
-    description: 'Fresh coat of Dulux Satin in Classic White. Walls prepped, taped, and finished with clean lines.',
-    images: [
-      'https://images.pexels.com/photos/1350789/pexels-photo-1350789.jpeg?auto=compress&cs=tinysrgb&w=600',
-    ],
-    likes: 18,
-    comments: 2,
-    views: 94,
-    saves: 5,
-    createdAt: '2025-10-24',
-    completionTime: '1 day',
-    price: 'ZAR 950',
-    verified: true,
-  },
-  {
-    id: 'post_4',
-    worker: { id: '4', name: 'Thabo N.', avatar: 'https://ui-avatars.com/api/?name=Thabo+N&background=10B981&color=fff', rating: 4.9 },
-    title: 'Bathroom Tiling',
-    category: 'Tilers',
-    location: 'Pretoria, Eastwood',
-    description: 'Full wall and floor tiling with anti-slip porcelain tiles. Waterproofing applied before installation.',
-    images: [
-      'https://images.pexels.com/photos/1350789/pexels-photo-1350789.jpeg?auto=compress&cs=tinysrgb&w=600',
-      'https://images.pexels.com/photos/2724749/pexels-photo-2724749.jpeg?auto=compress&cs=tinysrgb&w=600',
-    ],
-    likes: 31,
-    comments: 5,
-    views: 201,
-    saves: 12,
-    createdAt: '2025-10-25',
-    completionTime: '4 days',
-    price: 'ZAR 3,200',
-    verified: true,
-  },
-];
+interface Poster {
+  id: string;
+  full_name?: string | null;
+  avatar_url?: string | null;
+  location?: string | null;
+  role?: string | null;
+}
+
+interface ExploreJob {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  location: string;
+  min_budget?: number | null;
+  max_budget?: number | null;
+  created_at: string;
+  images: string[];
+  owner_id: string;
+  worker_id?: string | null;
+  status: string;
+  owner?: Poster | null;
+  worker?: Poster | null;
+  likesCount?: number;
+  commentsCount?: number;
+  userLiked?: boolean;
+}
 
 export default function ExplorePage() {
   const router = useRouter();
@@ -103,73 +49,70 @@ export default function ExplorePage() {
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [savedPosts, setSavedPosts] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'recent' | 'trending' | 'top-rated'>('recent');
-  const [completedJobs, setCompletedJobs] = useState<any[]>([]);
+  const [posts, setPosts] = useState<ExploreJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [commentModalOpen, setCommentModalOpen] = useState(false);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [comments, setComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [jobDetailsModalOpen, setJobDetailsModalOpen] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<ExploreJob | null>(null);
+  const [detailImageIndex, setDetailImageIndex] = useState(0);
 
-  const categories = ['All', 'Electricians', 'Gardeners', 'Painters', 'Tilers', 'Plumbers'];
+  const categories = ['All', 'Carpentry', 'Electrical', 'Tiling', 'Plumbing', 'General Contracting', 'Renewable Energy'];
 
+  // Fetch completed jobs from server explore API and subscribe to realtime updates
   useEffect(() => {
-    const fetchCompletedJobs = async () => {
-      setLoading(true);
-      setError(null);
+    let mounted = true;
+
+    const fetchJobs = async () => {
       try {
-        const response = await fetch('/api/explore', {
-          credentials: 'include',
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const jobs = await response.json();
-        // Convert jobs to feed post format
-        const feedPosts = jobs.map((job: any) => ({
-          id: job.id,
-          worker: {
-            id: job.user?.id || 'unknown',
-            name: job.user?.full_name || 'Anonymous',
-            avatar: job.user?.avatar_url || '/default-avatar.png',
-            rating: 4.5, // Default rating
-          },
-          title: job.title,
-          category: job.category || 'General',
-          location: job.location,
-          description: job.description,
-          images: job.images || [],
-          likes: 0,
-          comments: 0,
-          views: 0,
-          saves: 0,
-          createdAt: job.created_at,
-          completionTime: '—',
-          price: job.max_budget ? `ZAR ${job.max_budget}` : 'Contact for quote',
-          verified: true,
-        }));
-        setCompletedJobs(feedPosts);
+        const res = await fetch("/api/explore", { cache: "no-store" });
+        if (!res.ok) throw new Error("Failed to fetch explore");
+        const data: ExploreJob[] = await res.json();
+        if (!mounted) return;
+        setPosts(Array.isArray(data) ? data : []);
       } catch (err) {
-        console.error('Error loading completed jobs:', err);
+        console.error("Error loading explore jobs:", err);
         setError((err as any)?.message || 'Failed to load completed jobs.');
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
 
-    fetchCompletedJobs();
+    fetchJobs();
+
+    // Realtime subscription for jobs changes
+    const supabase = createSupabaseBrowserClient();
+    const channel = supabase
+      .channel("jobs-explore")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "jobs" },
+        () => {
+          fetchJobs();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  const allPosts = completedJobs;
-
-  const filteredPosts = allPosts.filter(post => {
+  const filteredPosts = posts.filter(post => {
     const matchesCategory = selectedCategory === 'All' || post.category === selectedCategory;
     const matchesSearch = post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          post.worker.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (post.worker?.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                           post.description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   }).sort((a, b) => {
-    if (sortBy === 'trending') return b.views - a.views;
-    if (sortBy === 'top-rated') return b.likes - a.likes;
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    if (sortBy === 'trending') return (b.likesCount || 0) - (a.likesCount || 0);
+    if (sortBy === 'top-rated') return (b.likesCount || 0) - (a.likesCount || 0);
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
@@ -178,44 +121,167 @@ export default function ExplorePage() {
     router.push(path as any);
   };
 
-  const toggleLike = (postId: string) => {
-    const newLiked = new Set(likedPosts);
-    newLiked.has(postId) ? newLiked.delete(postId) : newLiked.add(postId);
-    setLikedPosts(newLiked);
+  const toggleLike = async (postId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    try {
+      const res = await fetch(`/api/jobs/${postId}/likes`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      
+      if (!res.ok) throw new Error('Failed to toggle like');
+      
+      const { liked } = await res.json();
+      
+      setPosts(prev => prev.map(p => {
+        if (p.id === postId) {
+          return {
+            ...p,
+            userLiked: liked,
+            likesCount: (p.likesCount || 0) + (liked ? 1 : -1),
+          };
+        }
+        return p;
+      }));
+    } catch (err) {
+      console.error('Error toggling like:', err);
+      alert('Please log in to like posts');
+    }
   };
 
-  const toggleSave = (postId: string) => {
+  const toggleSave = (postId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     const newSaved = new Set(savedPosts);
     newSaved.has(postId) ? newSaved.delete(postId) : newSaved.add(postId);
     setSavedPosts(newSaved);
   };
 
-  const nextImage = (postId: string, imageCount: number) => {
+  const nextImage = (postId: string, imageCount: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     setCurrentImageIndex(prev => ({
       ...prev,
       [postId]: ((prev[postId] || 0) + 1) % imageCount
     }));
   };
 
-  const prevImage = (postId: string, imageCount: number) => {
+  const prevImage = (postId: string, imageCount: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     setCurrentImageIndex(prev => ({
       ...prev,
       [postId]: ((prev[postId] || 0) - 1 + imageCount) % imageCount
     }));
   };
 
-  const deletePost = (postId: string, e: React.MouseEvent) => {
-    // Completed jobs from API cannot be deleted, so this is a no-op
+  const openComments = async (postId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Cannot delete completed jobs from API');
+    setSelectedJobId(postId);
+    setCommentModalOpen(true);
+    
+    try {
+      const res = await fetch(`/api/jobs/${postId}/comments`, {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to fetch comments');
+      const { data } = await res.json();
+      setComments(data || []);
+    } catch (err) {
+      console.error('Error fetching comments:', err);
+      setComments([]);
+    }
   };
 
-   const openPrivacy = () => window.open('/privacy', '_blank');
-  const openTerms = () => window.open('/terms', '_blank');
-  const openContact = () => (window.location.href = '/contact');
+  const submitComment = async () => {
+    if (!newComment.trim() || !selectedJobId) return;
+    
+    setSubmittingComment(true);
+    try {
+      const res = await fetch(`/api/jobs/${selectedJobId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ content: newComment.trim() }),
+      });
+      
+      if (!res.ok) throw new Error('Failed to post comment');
+      const { data } = await res.json();
+      
+      setComments(prev => [data, ...prev]);
+      setNewComment("");
+      
+      setPosts(prev => prev.map(p => {
+        if (p.id === selectedJobId) {
+          return { ...p, commentsCount: (p.commentsCount || 0) + 1 };
+        }
+        return p;
+      }));
+    } catch (err) {
+      console.error('Error posting comment:', err);
+      alert('Failed to post comment. Please log in.');
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
 
-  return (
+  const handleMessageWorker = async (workerId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!workerId) {
+      alert('Worker not available');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/chats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ user_id: workerId }),
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          alert('Please log in to send messages');
+          return;
+        }
+        throw new Error('Failed to create conversation');
+      }
+      
+      const { data } = await res.json();
+      router.push(`/messages/${data.id}`);
+    } catch (err) {
+      console.error('Error starting conversation:', err);
+      alert('Failed to start conversation');
+    }
+  };
+
+  const openJobDetails = (job: ExploreJob, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedJob(job);
+    setDetailImageIndex(0);
+    setJobDetailsModalOpen(true);
+  };
+
+  const nextDetailImage = () => {
+    if (selectedJob && selectedJob.images.length > 0) {
+      setDetailImageIndex((prev) => (prev + 1) % selectedJob.images.length);
+    }
+  };
+
+  const prevDetailImage = () => {
+    if (selectedJob && selectedJob.images.length > 0) {
+      setDetailImageIndex((prev) => (prev - 1 + selectedJob.images.length) % selectedJob.images.length);
+    }
+  };
+
+   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors">
       {/* NAVBAR */}
       <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
@@ -414,11 +480,11 @@ export default function ExplorePage() {
             © {new Date().getFullYear()} Brinkify SA (Pty) Ltd. Connecting South Africa’s skilled workforce with real opportunities.
           </p>
           <div className="space-x-4 mt-3">
-            <button onClick={openTerms} className="text-blue-600 dark:text-blue-400 hover:underline">Terms</button>
+            <Link href="/terms" className="text-blue-600 dark:text-blue-400 hover:underline">Terms</Link>
             <span>•</span>
-            <button onClick={openPrivacy} className="text-blue-600 dark:text-blue-400 hover:underline">Privacy</button>
+            <Link href="/privacy" className="text-blue-600 dark:text-blue-400 hover:underline">Privacy</Link>
             <span>•</span>
-            <button onClick={openContact} className="text-blue-600 dark:text-blue-400 hover:underline">Contact</button>
+            <Link href="/contact" className="text-blue-600 dark:text-blue-400 hover:underline">Contact</Link>
           </div>
         </div>
       </footer>
